@@ -565,24 +565,41 @@
             modal = document.createElement('div');
             modal.id = 'weights-compare-modal';
             modal.className = 'modal-overlay';
+            // Estilos críticos inline para el overlay
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.background = 'rgba(3, 7, 18, 0.85)';
+            modal.style.backdropFilter = 'blur(12px)';
+            modal.style.webkitBackdropFilter = 'blur(12px)';
+            modal.style.zIndex = '1000';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.opacity = '0';
+            modal.style.pointerEvents = 'none';
+            modal.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+
             modal.innerHTML = `
-                <div class="modal-container">
-                    <div class="modal-header">
-                        <h2>Comparación Detallada de Composición (w_i,t)</h2>
-                        <button class="modal-close-btn" id="modal-close-btn">&times;</button>
+                <div class="modal-container" style="width: 92vw; height: 85vh; background: #090d16; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; display: flex; flex-direction: column; padding: 1.25rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85); transform: scale(0.96); transition: transform 0.2s ease-out; min-height: 0;">
+                    <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 0.6rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); flex-shrink: 0;">
+                        <h2 style="font-size: 1.05rem; font-weight: 600; margin: 0; background: linear-gradient(to right, #60a5fa, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-left: 3px solid var(--accent-solid); padding-left: 0.5rem;">Comparación Detallada de Composición (w_i,t)</h2>
+                        <button class="modal-close-btn" id="modal-close-btn" style="background: transparent; border: none; color: var(--text-secondary); font-size: 1.6rem; font-weight: 300; cursor: pointer; line-height: 1; padding: 0.1rem 0.4rem; transition: color 0.15s;">&times;</button>
                     </div>
-                    <div class="modal-body">
-                        <div class="modal-charts-row">
-                            <div class="modal-chart-col">
-                                <div class="modal-chart-title modal-p1-title">Portafolio 1</div>
-                                <div id="modal-weights-chart-p1" class="modal-chart-viewport"></div>
+                    <div class="modal-body" style="flex-grow: 1; display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; margin-top: 0.5rem;">
+                        <div class="modal-charts-row" style="display: flex; flex-direction: row; gap: 0.75rem; flex-grow: 1; height: auto; min-height: 0;">
+                            <div class="modal-chart-col" style="flex: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 0.5rem;">
+                                <div class="modal-chart-title modal-p1-title" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; margin-bottom: 2px; color: #00f3ff;">Portafolio 1</div>
+                                <div id="modal-weights-chart-p1" class="modal-chart-viewport" style="width: 100%; height: calc(100% - 15px);"></div>
                             </div>
-                            <div class="modal-chart-col">
-                                <div class="modal-chart-title modal-p2-title">Portafolio 2</div>
-                                <div id="modal-weights-chart-p2" class="modal-chart-viewport"></div>
+                            <div class="modal-chart-col" style="flex: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 0.5rem;">
+                                <div class="modal-chart-title modal-p2-title" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; margin-bottom: 2px; color: #cc00ff;">Portafolio 2</div>
+                                <div id="modal-weights-chart-p2" class="modal-chart-viewport" style="width: 100%; height: calc(100% - 15px);"></div>
                             </div>
                         </div>
-                        <div id="modal-weights-shared-legend" class="modal-legend-container"></div>
+                        <div id="modal-weights-shared-legend" class="modal-legend-container" style="flex-shrink: 0; height: auto; background: rgba(255, 255, 255, 0.01); border-top: 1px solid rgba(255, 255, 255, 0.03);"></div>
                     </div>
                 </div>
             `;
@@ -599,7 +616,12 @@
         createWeightsCompareModal();
         const modal = document.getElementById('weights-compare-modal');
         if (modal) {
-            modal.classList.add('active');
+            modal.style.opacity = '1';
+            modal.style.pointerEvents = 'all';
+            const container = modal.querySelector('.modal-container');
+            if (container) {
+                container.style.transform = 'scale(1)';
+            }
             isModalOpen = true;
             renderCompareWeightsCharts(rawEvolutionDataP1, rawEvolutionDataP2);
         }
@@ -608,7 +630,12 @@
     function closeWeightsCompareModal() {
         const modal = document.getElementById('weights-compare-modal');
         if (modal) {
-            modal.classList.remove('active');
+            modal.style.opacity = '0';
+            modal.style.pointerEvents = 'none';
+            const container = modal.querySelector('.modal-container');
+            if (container) {
+                container.style.transform = 'scale(0.96)';
+            }
             isModalOpen = false;
             
             // Destruir gráficos para liberar recursos
@@ -635,14 +662,14 @@
             }
             container.classList.add('compare-mode');
             container.innerHTML = `
-                <div class="weights-compare-inactive-card">
-                    <svg class="inactive-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                <div class="weights-compare-inactive-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; height: 100%; width: 100%; padding: 1.5rem; background: rgba(17, 24, 39, 0.2); border-radius: 8px; gap: 0.6rem;">
+                    <svg class="inactive-icon" style="width: 38px; height: 38px; stroke: var(--text-muted); opacity: 0.6; margin-bottom: 0.25rem; fill: none;" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
                         <path d="M3 3v18h18M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
                     </svg>
-                    <h3>Comparación de Composición de Activos</h3>
-                    <p>Analice la evolución de la distribución de pesos de ambos portafolios en paralelo a pantalla completa.</p>
-                    <button class="btn btn-primary" id="btn-expand-weights">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                    <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin: 0;">Comparación de Composición de Activos</h3>
+                    <p style="font-size: 0.76rem; color: var(--text-secondary); max-width: 260px; line-height: 1.4; margin: 0;">Analice la evolución de la distribución de pesos de ambos portafolios en paralelo a pantalla completa.</p>
+                    <button class="btn btn-primary" id="btn-expand-weights" style="margin-top: 0.5rem; display: flex; align-items: center; gap: 6px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="width: 14px; height: 14px;">
                             <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
                         </svg>
                         Expandir Comparativa
