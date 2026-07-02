@@ -43,6 +43,7 @@
     let weightsChartP1 = null;
     let weightsChartP2 = null;
     let isModalOpen = false;
+    let isSimilarExpanded = false;
 
 
     let portfoliosData = [];
@@ -409,7 +410,7 @@
         // Obtener la lista de activos
         const assetNames = Object.keys(p1[0].pesos);
         
-        // Calcular pesos para mostrar
+        // Calcular pesos
         const weightsData = [];
         assetNames.forEach(name => {
             let w1, w2;
@@ -426,23 +427,30 @@
             weightsData.push({ name, w1, w2, diff });
         });
 
-        // Ordenar por peso promedio (o peso actual) de mayor a menor
-        weightsData.sort((a, b) => (b.w1 + b.w2) - (a.w1 + a.w2));
+        // Separar activos por estrategia
+        const p1Over = [];
+        const p2Over = [];
+        const neutral = [];
 
-        // Construir HTML de las tarjetas
-        let html = `
-            <div style="width: 100%; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem 0.75rem;">
-                <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 0.25rem;">
-                    <span>${titleStr}</span>
-                    <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: none; font-weight: 400;">
-                        ${showAverage ? 'Desplace el cursor sobre los gráficos para ver datos diarios' : 'Valores en el punto hovered'}
-                    </span>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; width: 100%;">
-        `;
+        weightsData.forEach(item => {
+            if (item.diff >= 0.01) {
+                p1Over.push(item);
+            } else if (item.diff <= -0.01) {
+                p2Over.push(item);
+            } else {
+                neutral.push(item);
+            }
+        });
 
-        weightsData.forEach((item, idx) => {
-            const color = neonColors[idx % neonColors.length];
+        // Ordenar cada grupo
+        p1Over.sort((a, b) => b.diff - a.diff); // De mayor a menor sesgo P1
+        p2Over.sort((a, b) => a.diff - b.diff); // De mayor a menor sesgo P2 (más negativo primero)
+        neutral.sort((a, b) => (b.w1 + b.w2) - (a.w1 + a.w2)); // Por peso promedio total
+
+        // Helper para renderizar cada tarjeta individual con color consistente
+        const renderAssetCard = (item) => {
+            const originalIdx = assetNames.indexOf(item.name);
+            const color = neonColors[originalIdx % neonColors.length];
             const p1Percent = (item.w1 * 100).toFixed(2) + '%';
             const p2Percent = (item.w2 * 100).toFixed(2) + '%';
             const diffVal = item.diff * 100;
@@ -451,36 +459,100 @@
             
             if (diffVal > 0.005) {
                 diffText = `+${diffVal.toFixed(2)}%`;
-                diffColor = '#00f3ff'; // Cian (P1 mayor)
+                diffColor = '#00f3ff'; // Cian
             } else if (diffVal < -0.005) {
                 diffText = `${diffVal.toFixed(2)}%`;
-                diffColor = '#cc00ff'; // Púrpura (P2 mayor)
+                diffColor = '#cc00ff'; // Púrpura
             } else {
                 diffText = '0.00%';
             }
 
-            html += `
-                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 6px; padding: 0.4rem 0.6rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-                    <div style="display: flex; align-items: center; gap: 0.4rem; min-width: 0; flex: 1;">
-                        <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background-color:${color}; box-shadow: 0 0 5px ${color}80; flex-shrink: 0;"></span>
-                        <span style="font-size: 0.72rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">${item.name}</span>
+            return `
+                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 5px; padding: 0.35rem 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;">
+                    <div style="display: flex; align-items: center; gap: 0.35rem; min-width: 0; flex: 1;">
+                        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${color}; box-shadow: 0 0 4px ${color}80; flex-shrink: 0;"></span>
+                        <span style="font-size: 0.68rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">${item.name}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 500; flex-shrink: 0;">
+                    <div style="display: flex; align-items: center; gap: 0.45rem; font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 500; flex-shrink: 0;">
                         <span style="color: #00f3ff;" title="Peso en Portafolio 1">${p1Percent}</span>
-                        <span style="color: var(--text-muted); font-size: 0.65rem;">/</span>
+                        <span style="color: var(--text-muted); font-size: 0.6rem;">/</span>
                         <span style="color: #cc00ff;" title="Peso en Portafolio 2">${p2Percent}</span>
-                        <span style="color: ${diffColor}; font-size: 0.68rem; font-weight: 600; min-width: 45px; text-align: right;" title="Diferencia (P1 - P2)">${diffText}</span>
+                        <span style="color: ${diffColor}; font-size: 0.65rem; font-weight: 600; min-width: 40px; text-align: right;" title="Diferencia (P1 - P2)">${diffText}</span>
                     </div>
                 </div>
             `;
-        });
+        };
 
-        html += `
+        const p1OverHTML = p1Over.length > 0 
+            ? p1Over.map(item => renderAssetCard(item)).join('')
+            : '<div style="font-size: 0.68rem; color: var(--text-muted); font-style: italic; padding: 0.25rem;">Ningún activo</div>';
+
+        const p2OverHTML = p2Over.length > 0 
+            ? p2Over.map(item => renderAssetCard(item)).join('')
+            : '<div style="font-size: 0.68rem; color: var(--text-muted); font-style: italic; padding: 0.25rem;">Ningún activo</div>';
+
+        const neutralHTML = neutral.length > 0 
+            ? neutral.map(item => renderAssetCard(item)).join('')
+            : '<div style="font-size: 0.68rem; color: var(--text-muted); font-style: italic; padding: 0.25rem; grid-column: span 2;">Ningún activo</div>';
+
+        // Construir la estructura completa
+        let html = `
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 0.4rem; padding: 0.4rem 0.6rem;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 0.2rem;">
+                    <span>${titleStr}</span>
+                    <span style="font-size: 0.62rem; color: var(--text-muted); text-transform: none; font-weight: 400;">
+                        ${showAverage ? 'Desplace el cursor sobre los gráficos para ver datos diarios' : 'Valores en el punto hovered'}
+                    </span>
+                </div>
+                
+                <div style="display: flex; flex-direction: row; gap: 0.75rem; width: 100%;">
+                    <!-- Columna P1 Over -->
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div style="font-size: 0.68rem; font-weight: 700; color: #00f3ff; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(0, 243, 255, 0.12); padding-bottom: 0.15rem; margin-bottom: 0.2rem; display: flex; justify-content: space-between;">
+                            <span>Sobreponderados en P1</span>
+                            <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;">(${p1Over.length})</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.3rem; max-height: 110px; overflow-y: auto;">
+                            ${p1OverHTML}
+                        </div>
+                    </div>
+                    
+                    <!-- Columna P2 Over -->
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div style="font-size: 0.68rem; font-weight: 700; color: #cc00ff; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(204, 0, 255, 0.12); padding-bottom: 0.15rem; margin-bottom: 0.2rem; display: flex; justify-content: space-between;">
+                            <span>Sobreponderados en P2</span>
+                            <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;">(${p2Over.length})</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.3rem; max-height: 110px; overflow-y: auto;">
+                            ${p2OverHTML}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Acordeón para activos similares -->
+                <div style="margin-top: 0.3rem; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.3rem;">
+                    <button id="btn-toggle-similar" style="width: 100%; justify-content: space-between; font-size: 0.68rem; padding: 0.25rem 0.4rem; background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.03); border-radius: 4px; color: var(--text-secondary); display: flex; align-items: center; cursor: pointer; transition: background 0.15s;">
+                        <span style="font-weight: 600;">${isSimilarExpanded ? '▼' : '►'} Activos con asignaciones similares (diferencia < 1.0%) (${neutral.length})</span>
+                        <span style="font-size: 0.6rem; color: var(--text-muted);">${isSimilarExpanded ? 'Ocultar' : 'Mostrar'}</span>
+                    </button>
+                    <div id="similar-assets-panel" style="display: ${isSimilarExpanded ? 'grid' : 'none'}; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.3rem; margin-top: 0.3rem; max-height: 90px; overflow-y: auto; padding: 0.1rem;">
+                        ${neutralHTML}
+                    </div>
                 </div>
             </div>
         `;
 
         legendEl.innerHTML = html;
+
+        // Vincular el acordeón
+        const toggleBtn = legendEl.querySelector('#btn-toggle-similar');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                isSimilarExpanded = !isSimilarExpanded;
+                renderWeightsComparisonTable(dataPointIndex);
+            });
+        }
     }
 
     function getWeightsSeries(data, groupEnabled) {
@@ -589,7 +661,7 @@
                         <button class="modal-close-btn" id="modal-close-btn" style="background: transparent; border: none; color: var(--text-secondary); font-size: 1.6rem; font-weight: 300; cursor: pointer; line-height: 1; padding: 0.1rem 0.4rem; transition: color 0.15s;">&times;</button>
                     </div>
                     <div class="modal-body" style="flex-grow: 1; display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; margin-top: 0.5rem;">
-                        <div class="modal-charts-row" style="display: flex; flex-direction: row; gap: 0.75rem; flex-grow: 1; height: auto; min-height: 0;">
+                        <div class="modal-charts-row" style="display: flex; flex-direction: row; gap: 0.75rem; height: 60%; flex-shrink: 0; min-height: 0;">
                             <div class="modal-chart-col" style="flex: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 0.5rem;">
                                 <div class="modal-chart-title modal-p1-title" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; margin-bottom: 2px; color: #00f3ff;">Portafolio 1</div>
                                 <div id="modal-weights-chart-p1" class="modal-chart-viewport" style="width: 100%; height: calc(100% - 15px);"></div>
@@ -599,7 +671,7 @@
                                 <div id="modal-weights-chart-p2" class="modal-chart-viewport" style="width: 100%; height: calc(100% - 15px);"></div>
                             </div>
                         </div>
-                        <div id="modal-weights-shared-legend" class="modal-legend-container" style="flex-shrink: 0; height: auto; background: rgba(255, 255, 255, 0.01); border-top: 1px solid rgba(255, 255, 255, 0.03);"></div>
+                        <div id="modal-weights-shared-legend" class="modal-legend-container" style="flex-grow: 1; height: auto; min-height: 0; overflow-y: auto; background: rgba(255, 255, 255, 0.01); border-top: 1px solid rgba(255, 255, 255, 0.03);"></div>
                     </div>
                 </div>
             `;
