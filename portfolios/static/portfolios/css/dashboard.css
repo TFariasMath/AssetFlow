@@ -667,6 +667,64 @@ footer {
     width: 100%;
 }
 
+/* Clases para los gráficos comparativos de pesos lado a lado */
+.weights-compare-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    gap: 0.25rem;
+}
+
+.weights-compare-row {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    flex-grow: 1;
+    height: calc(100% - 35px);
+    width: 100%;
+    min-height: 0;
+}
+
+.weights-compare-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-width: 0;
+}
+
+.weights-compare-col-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 2px;
+}
+
+.weights-compare-col-p1 {
+    color: #00f3ff;
+}
+
+.weights-compare-col-p2 {
+    color: #cc00ff;
+}
+
+.weights-compare-chart {
+    width: 100%;
+    height: calc(100% - 15px);
+}
+
+.weights-compare-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.25rem;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.01);
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
 /* Adaptabilidad y Diseño Responsivo */
 @media (max-width: 1024px) {
     html, body {
@@ -722,9 +780,21 @@ footer {
         height: auto !important;
     }
     
-    #weights-chart-container.compare-mode > div {
+    .weights-compare-wrapper {
+        height: auto !important;
+    }
+    
+    .weights-compare-row {
         flex-direction: column !important;
         gap: 1rem !important;
         height: auto !important;
+    }
+    
+    .weights-compare-col {
+        height: 250px !important;
+    }
+    
+    .weights-compare-chart {
+        height: 230px !important;
     }
 }

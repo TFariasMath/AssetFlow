@@ -283,7 +283,7 @@
         const isCompare = (portfolioSelect.value === 'compare');
         if (isCompare) {
             if (rawEvolutionDataP1.length > 0 && rawEvolutionDataP2.length > 0) {
-                updateCompareWeightsSelector();
+                renderCompareWeightsCharts(rawEvolutionDataP1, rawEvolutionDataP2);
             }
         } else {
             if (rawEvolutionData.length > 0) renderWeightsChart(rawEvolutionData);
@@ -378,85 +378,37 @@
         return series;
     }
 
-    function renderCompareWeightsChart(selectedAsset, p1, p2) {
+    function renderCompareWeightsCharts(p1, p2) {
         if (weightsChartP1) {
             try { weightsChartP1.destroy(); } catch(e){}
             weightsChartP1 = null;
         }
+        if (weightsChartP2) {
+            try { weightsChartP2.destroy(); } catch(e){}
+            weightsChartP2 = null;
+        }
 
+        const categories = p1.map(item => item.fecha);
         const series1 = getWeightsSeries(p1, groupAssetsCheck.checked);
         const series2 = getWeightsSeries(p2, groupAssetsCheck.checked);
 
-        const s1 = series1.find(s => s.name === selectedAsset);
-        const s2 = series2.find(s => s.name === selectedAsset);
+        // Renderizar leyenda compartida abajo
+        renderSharedLegend(series1, neonColors);
 
-        const data1 = s1 ? s1.data : p1.map(() => 0);
-        const data2 = s2 ? s2.data : p2.map(() => 0);
+        // Gráficos de área apilados individuales compartiendo el mismo grupo de sincronización
+        const options1 = getWeightsChartOptions('weightsChartP1', 'portfolioGroupCompare', series1, categories, false);
+        const options2 = getWeightsChartOptions('weightsChartP2', 'portfolioGroupCompare', series2, categories, false);
 
-        const categories = p1.map(item => item.fecha);
-        const series = [
-            { name: 'Portafolio 1', data: data1 },
-            { name: 'Portafolio 2', data: data2 }
-        ];
+        const chartEl1 = document.querySelector("#weights-chart-p1");
+        const chartEl2 = document.querySelector("#weights-chart-p2");
 
-        const base = getBaseChartOptions('weightsChartCompare', 'portfolioGroupCompare');
-        const options = {
-            ...base,
-            chart: {
-                ...base.chart,
-                type: 'line'
-            },
-            colors: ['#00f3ff', '#cc00ff'],
-            series: series,
-            stroke: {
-                curve: 'smooth',
-                width: 2.5
-            },
-            xaxis: {
-                categories: categories,
-                type: 'datetime',
-                labels: { format: 'dd/MM/yy' }
-            },
-            yaxis: {
-                labels: { formatter: val => val.toFixed(1) + '%' }
-            },
-            tooltip: {
-                ...base.tooltip,
-                y: { formatter: val => val.toFixed(2) + '%' }
-            }
-        };
-
-        const chartEl = document.querySelector("#weights-chart-compare");
-        if (chartEl) {
-            chartEl.innerHTML = '';
-            weightsChartP1 = new ApexCharts(chartEl, options);
+        if (chartEl1 && chartEl2) {
+            chartEl1.innerHTML = '';
+            chartEl2.innerHTML = '';
+            weightsChartP1 = new ApexCharts(chartEl1, options1);
             weightsChartP1.render();
-        }
-    }
-
-    function updateCompareWeightsSelector() {
-        const assetSelect = document.getElementById('asset-compare-select');
-        if (assetSelect) {
-            const currentSelectedAsset = assetSelect.value;
-            assetSelect.innerHTML = '';
-            
-            const series1 = getWeightsSeries(rawEvolutionDataP1, groupAssetsCheck.checked);
-            const assetNames = series1.map(s => s.name);
-            
-            assetNames.forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                assetSelect.appendChild(opt);
-            });
-
-            if (currentSelectedAsset && assetNames.includes(currentSelectedAsset)) {
-                assetSelect.value = currentSelectedAsset;
-            } else {
-                assetSelect.value = assetNames[0] || '';
-            }
-
-            renderCompareWeightsChart(assetSelect.value, rawEvolutionDataP1, rawEvolutionDataP2);
+            weightsChartP2 = new ApexCharts(chartEl2, options2);
+            weightsChartP2.render();
         }
     }
 
@@ -465,18 +417,26 @@
         const titleEl = document.getElementById('weights-chart-title');
         
         if (isCompare) {
-            titleEl.textContent = "Comparativa de Pesos por Activo";
+            titleEl.textContent = "Comparativa de Pesos de Activos (w_i,t)";
             if (weightsChart) {
                 try { weightsChart.destroy(); } catch(e){}
                 weightsChart = null;
             }
             container.classList.add('compare-mode');
             container.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; flex-shrink: 0;">
-                    <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Ver evolución de peso para:</div>
-                    <select id="asset-compare-select" style="background: rgba(17, 24, 39, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 0.25rem 0.5rem; color: var(--text-primary); font-family: inherit; font-size: 0.8rem; cursor: pointer; outline: none; transition: border-color 0.2s;"></select>
+                <div class="weights-compare-wrapper">
+                    <div class="weights-compare-row">
+                        <div class="weights-compare-col">
+                            <div class="weights-compare-col-title weights-compare-col-p1">Portafolio 1</div>
+                            <div id="weights-chart-p1" class="weights-compare-chart"></div>
+                        </div>
+                        <div class="weights-compare-col">
+                            <div class="weights-compare-col-title weights-compare-col-p2">Portafolio 2</div>
+                            <div id="weights-chart-p2" class="weights-compare-chart"></div>
+                        </div>
+                    </div>
+                    <div id="weights-shared-legend" class="weights-compare-legend"></div>
                 </div>
-                <div id="weights-chart-compare" style="width: 100%; height: calc(100% - 30px);"></div>
             `;
         } else {
             titleEl.textContent = "Distribución de Pesos de Activos (w_i,t)";
@@ -523,14 +483,7 @@
                 await fetchComparativeEconometrics(start, end);
                 
                 renderOverlaidValueChart(rawEvolutionDataP1, rawEvolutionDataP2);
-                
-                updateCompareWeightsSelector();
-                const assetSelect = document.getElementById('asset-compare-select');
-                if (assetSelect) {
-                    assetSelect.addEventListener('change', () => {
-                        renderCompareWeightsChart(assetSelect.value, rawEvolutionDataP1, rawEvolutionDataP2);
-                    });
-                }
+                renderCompareWeightsCharts(rawEvolutionDataP1, rawEvolutionDataP2);
             } catch (err) {
                 console.error(err);
             }
