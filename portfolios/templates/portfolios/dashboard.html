@@ -1,0 +1,211 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dashboard interactivo de AssetFlow para el análisis avanzado, evolución de activos y cointegración de portafolios de inversión.">
+    <title>AssetFlow - Evolución y Análisis de Portafolios</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- ApexCharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'portfolios/css/dashboard.css' %}">
+</head>
+<body>
+
+    <div class="loader-wrapper" id="loader">
+        <div class="spinner"></div>
+        <p style="font-size: 0.9rem; color: var(--text-secondary);">Procesando datos...</p>
+    </div>
+
+    <!-- Navigation Navbar -->
+    <header class="navbar">
+        <div class="navbar-brand">
+            <h1>AssetFlow</h1>
+            <span>Análisis Avanzado de Portafolios</span>
+        </div>
+        
+        <div class="navbar-controls">
+            <div class="nav-input-group">
+                <label for="portfolio-select">Portafolio</label>
+                <select id="portfolio-select"></select>
+            </div>
+            <div class="nav-input-group">
+                <label for="date-start">Inicio</label>
+                <input type="date" id="date-start">
+            </div>
+            <div class="nav-input-group">
+                <label for="date-end">Fin</label>
+                <input type="date" id="date-end">
+            </div>
+            <div class="nav-actions">
+                <button class="btn btn-primary" id="btn-update">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    Actualizar
+                </button>
+                <button class="btn btn-secondary" id="btn-csv" title="Descargar CSV">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    Exportar CSV
+                </button>
+                <button class="btn btn-secondary" id="btn-pdf" title="Imprimir PDF">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    PDF
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tab Buttons -->
+    <div class="tabs-header">
+        <button class="tab-btn active" data-tab="tab-evolution">
+            Evolución del Portafolio
+        </button>
+        <button class="tab-btn" data-tab="tab-econometrics">
+            Análisis de Series Temporales (ADF & Coint)
+        </button>
+    </div>
+
+    <!-- TAB 1: EVOLUCION -->
+    <div class="tab-content active" id="tab-evolution">
+        <!-- KPIs Row -->
+        <div class="kpis-row">
+            <div class="kpi-card roi">
+                <div class="kpi-info">
+                    <span class="label" id="kpi-roi-title">
+                        Retorno Período (ROI)
+                        <span class="help-tooltip" data-tooltip="Fórmula: ((V_final - V_inicial) / V_inicial) * 100. Mide el crecimiento porcentual neto del portafolio en el período seleccionado.">?</span>
+                    </span>
+                    <span class="desc">Rendimiento neto de la inversión</span>
+                </div>
+                <span class="kpi-value" id="kpi-roi">0.00%</span>
+            </div>
+            <div class="kpi-card mdd">
+                <div class="kpi-info">
+                    <span class="label" id="kpi-mdd-title">
+                        Máximo Drawdown
+                        <span class="help-tooltip" data-tooltip="Mide la mayor caída acumulada pico-a-valle (la caída más profunda) en la valorización antes de establecer un nuevo máximo histórico.">?</span>
+                    </span>
+                    <span class="desc">Mayor caída acumulada pico-valle</span>
+                </div>
+                <span class="kpi-value" style="color:#ef4444" id="kpi-mdd">0.00%</span>
+            </div>
+            <div class="kpi-card top" id="kpi-card-three">
+                <div class="kpi-info">
+                    <span class="label" id="kpi-top-title">
+                        Activo Estrella
+                        <span class="help-tooltip" data-tooltip="Fórmula: ((w_final * V_final) / (w_initial * V_initial) - 1) * 100. El activo con el mayor rendimiento individual en su precio cotizado durante el período.">?</span>
+                    </span>
+                    <span class="desc" id="kpi-top-desc">Retorno máximo individual</span>
+                </div>
+                <span class="kpi-value" style="color:#f59e0b" id="kpi-top">---</span>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="charts-row">
+            <div class="chart-box">
+                <div class="chart-box-header">
+                    <h2>Valorización del Portafolio (V_t)</h2>
+                    <div class="chart-toggle-group" id="value-toggle-group">
+                        <input type="checkbox" id="show-sma">
+                        <label for="show-sma">Tendencia SMA 20</label>
+                    </div>
+                </div>
+                <div class="chart-viewport">
+                    <div id="value-chart" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <div class="chart-box">
+                <div class="chart-box-header">
+                    <h2 id="weights-chart-title">Distribución de Pesos de Activos (w_i,t)</h2>
+                    <div class="chart-toggle-group" id="weights-toggle-group">
+                        <input type="checkbox" id="group-assets" checked>
+                        <label for="group-assets">Simplificar leyenda</label>
+                    </div>
+                </div>
+                <div class="chart-viewport" id="weights-chart-container">
+                    <div id="weights-chart" style="width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: ECONOMETRIA -->
+    <div class="tab-content" id="tab-econometrics">
+        <div class="econometrics-row">
+            <!-- ADF Unit Root Card -->
+            <div class="econometric-card" id="adf-card-container">
+                <div class="econometric-card-header">
+                    <h2>Test de Raíz Unitaria (ADF)</h2>
+                    <span class="badge" id="adf-badge">---</span>
+                </div>
+                <p id="adf-conclusion">Cargando datos de análisis de tendencia...</p>
+                <div class="econometric-table-wrapper" id="adf-table-wrapper">
+                    <table class="econometric-table">
+                        <tr>
+                            <td class="label">Estadístico del Test (ADF)</td>
+                            <td class="value" id="val-adf-stat">---</td>
+                        </tr>
+                        <tr>
+                            <td class="label">p-valor</td>
+                            <td class="value" id="val-adf-p">---</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Valor Crítico (1%)</td>
+                            <td class="value" id="val-adf-crit-1">---</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Valor Crítico (5%)</td>
+                            <td class="value" id="val-adf-crit-5">---</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Valor Crítico (10%)</td>
+                            <td class="value" id="val-adf-crit-10">---</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Engle-Granger Cointegration Card -->
+            <div class="econometric-card">
+                <div class="econometric-card-header">
+                    <h2>Test de Cointegración (Engle-Granger)</h2>
+                    <span class="badge" id="coint-badge">---</span>
+                </div>
+                <p id="coint-conclusion">Cargando relación de tendencia de largo plazo...</p>
+                <div class="econometric-table-wrapper">
+                    <table class="econometric-table">
+                        <tr>
+                            <td class="label">Estadístico de Cointegración</td>
+                            <td class="value" id="val-coint-stat">---</td>
+                        </tr>
+                        <tr>
+                            <td class="label">p-valor</td>
+                            <td class="value" id="val-coint-p">---</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Relación de Cointegración</td>
+                            <td class="value" id="val-coint-status">---</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        AssetFlow &copy; 2026 | Desarrollado con Django + Medallion DB + ApexCharts
+    </footer>
+
+    <!-- Custom JavaScript -->
+    <script src="{% static 'portfolios/js/dashboard.js' %}"></script>
+</body>
+</html>

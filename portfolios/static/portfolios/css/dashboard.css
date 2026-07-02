@@ -1,0 +1,730 @@
+:root {
+    --bg-color: #030712;
+    --card-bg: rgba(17, 24, 39, 0.45);
+    --card-border: rgba(255, 255, 255, 0.06);
+    --card-hover-border: rgba(59, 130, 246, 0.3);
+    --text-primary: #f9fafb;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --accent-solid: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.15);
+    --success-solid: #10b981;
+    --success-glow: rgba(16, 185, 129, 0.15);
+    --danger-solid: #ef4444;
+    --danger-glow: rgba(239, 68, 68, 0.15);
+    --warning-solid: #f59e0b;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Ocultar scrollbar general para efecto Single Page */
+html, body {
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Outfit', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 1.25rem;
+}
+
+/* Top Navigation Bar */
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(17, 24, 39, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 0.6rem 1.25rem;
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
+}
+
+.navbar-brand {
+    display: flex;
+    flex-direction: column;
+}
+
+.navbar-brand h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(to right, #60a5fa, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.navbar-brand span {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+}
+
+.navbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.nav-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-input-group label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+}
+
+.nav-input-group select,
+.nav-input-group input[type="date"] {
+    background: rgba(17, 24, 39, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    outline: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.nav-input-group select:hover,
+.nav-input-group input[type="date"]:hover {
+    border-color: rgba(59, 130, 246, 0.35);
+    background: rgba(17, 24, 39, 0.85);
+}
+
+.nav-input-group select:focus,
+.nav-input-group input[type="date"]:focus {
+    border-color: var(--accent-solid);
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
+    background: rgba(17, 24, 39, 0.95);
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn {
+    border: none;
+    border-radius: 6px;
+    padding: 0.4rem 0.85rem;
+    color: white;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.btn svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2.2px;
+    transition: transform 0.2s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #4f46e5, #3b82f6);
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.35);
+    transform: translateY(-0.5px);
+}
+
+.btn-primary:hover svg {
+    transform: rotate(30deg);
+}
+
+.btn-primary:active {
+    transform: translateY(0.5px);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-0.5px);
+}
+
+.btn-secondary:hover svg {
+    transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+    transform: translateY(0.5px);
+}
+
+/* Tab Navigation */
+.tabs-header {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 0.25rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-btn.active {
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    font-weight: 600;
+}
+
+/* Tab Content Manager */
+.tab-content {
+    flex-grow: 1;
+    display: none;
+    overflow: hidden;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* --- TAB 1: EVOLUCION --- */
+.kpis-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.kpi-card {
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.65), rgba(31, 41, 55, 0.3));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3.5px;
+    height: 100%;
+    border-radius: 10px 0 0 10px;
+    transition: all 0.2s ease;
+}
+
+/* Colores de acento originales con efecto de brillo neón sutil */
+.kpi-card.roi::before {
+    background: var(--success-solid);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+.kpi-card.mdd::before {
+    background: var(--danger-solid);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+.kpi-card.top::before {
+    background: var(--warning-solid);
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+/* Hover interactivo y futurista específico para cada KPI */
+.kpi-card.roi:hover {
+    transform: translateY(-2px);
+    border-color: rgba(16, 185, 129, 0.35);
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12), inset 0 0 12px rgba(16, 185, 129, 0.04);
+}
+
+.kpi-card.mdd:hover {
+    transform: translateY(-2px);
+    border-color: rgba(239, 68, 68, 0.35);
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.12), inset 0 0 12px rgba(239, 68, 68, 0.04);
+}
+
+.kpi-card.top:hover {
+    transform: translateY(-2px);
+    border-color: rgba(245, 158, 11, 0.35);
+    box-shadow: 0 8px 24px rgba(245, 158, 11, 0.12), inset 0 0 12px rgba(245, 158, 11, 0.04);
+}
+
+.kpi-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.kpi-info .label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.04em;
+}
+
+.kpi-info .desc {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    font-weight: 300;
+}
+
+.kpi-value {
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Estilizado avanzado para la comparación de portafolios inyectada por JS */
+.kpi-value div {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.98rem !important;
+    line-height: 1.35 !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+}
+
+/* Efecto neón en los valores dinámicos coloreados */
+.kpi-value div span {
+    text-shadow: 0 0 8px currentColor;
+}
+
+.charts-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.chart-box {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.chart-box:hover {
+    border-color: var(--card-hover-border);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.08);
+}
+
+/* Custom Scrollbar for Econometrics Cards */
+.econometric-card::-webkit-scrollbar {
+    width: 6px;
+}
+.econometric-card::-webkit-scrollbar-track {
+    background: transparent;
+}
+.econometric-card::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+.econometric-card::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-solid);
+}
+
+.chart-box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    flex-shrink: 0;
+}
+
+.chart-box-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-left: 3px solid var(--accent-solid);
+    padding-left: 0.5rem;
+}
+
+.chart-toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.chart-toggle-group input {
+    cursor: pointer;
+}
+
+.chart-viewport {
+    flex-grow: 1;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Tooltip de ayuda (?) */
+.help-tooltip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: help;
+    margin-left: 0.35rem;
+    position: relative;
+    vertical-align: middle;
+    transition: all 0.2s ease;
+}
+
+.help-tooltip:hover {
+    background: var(--accent-solid);
+    color: white;
+}
+
+.help-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 130%;
+    left: 50%;
+    transform: translateX(-50%) scale(0.9);
+    background: #1f2937;
+    color: #f3f4f6;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    line-height: 1.35;
+    width: 230px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+}
+
+.help-tooltip:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+/* Estilizado del toolbar de ApexCharts en modo oscuro */
+.apexcharts-toolbar {
+    z-index: 10 !important;
+}
+.apexcharts-toolbar svg {
+    fill: var(--text-secondary) !important;
+    transition: fill 0.2s;
+}
+.apexcharts-toolbar svg:hover {
+    fill: var(--text-primary) !important;
+}
+
+/* --- TAB 3: ECONOMETRIA --- */
+.econometrics-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.econometric-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
+}
+
+.econometric-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 0.5rem;
+    flex-shrink: 0;
+}
+
+.econometric-card-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #60a5fa;
+}
+
+.badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.badge-success { background: var(--success-glow); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+.badge-danger { background: var(--danger-glow); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+.econometric-card p {
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.econometric-table-wrapper {
+    margin-top: 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.econometric-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+}
+
+.econometric-table td {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.econometric-table tr:last-child td {
+    border-bottom: none;
+}
+
+.econometric-table td.label {
+    color: var(--text-muted);
+    width: 60%;
+}
+
+.econometric-table td.value {
+    color: #a7f3d0;
+    text-align: right;
+}
+
+/* Loader overlays */
+.loader-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(3, 7, 18, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.loader-wrapper.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.05);
+    border-left-color: var(--accent-solid);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Footer */
+footer {
+    margin-top: 0.5rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 300;
+    flex-shrink: 0;
+}
+
+/* Print styles */
+@media print {
+    html, body {
+        height: auto;
+        overflow: visible;
+    }
+    .navbar, .tabs-header, .loader-wrapper, .btn {
+        display: none !important;
+    }
+    .tab-content {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 1.5rem !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    .charts-row, .econometrics-row {
+        grid-template-columns: 1fr !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    .chart-box, .econometric-card {
+        background: white !important;
+        border: 1px solid #ccc !important;
+        color: black !important;
+        height: auto !important;
+    }
+}
+
+/* Modos de diseño del contenedor de gráficos de pesos */
+#weights-chart-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    height: 100%;
+    width: 100%;
+}
+
+#weights-chart-container.compare-mode {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.25rem;
+    height: 100%;
+    width: 100%;
+}
+
+/* Adaptabilidad y Diseño Responsivo */
+@media (max-width: 1024px) {
+    html, body {
+        height: auto !important;
+        overflow: auto !important;
+    }
+
+    body {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .navbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .navbar-controls {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .nav-input-group {
+        justify-content: space-between;
+    }
+
+    .nav-actions {
+        justify-content: stretch;
+    }
+
+    .nav-actions button {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .charts-row, .econometrics-row {
+        grid-template-columns: 1fr !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    .kpis-row {
+        grid-template-columns: 1fr !important;
+        gap: 0.5rem !important;
+    }
+
+    .chart-box, .econometric-card {
+        height: 380px !important;
+    }
+    
+    #weights-chart-container.compare-mode {
+        height: auto !important;
+    }
+    
+    #weights-chart-container.compare-mode > div {
+        flex-direction: column !important;
+        gap: 1rem !important;
+        height: auto !important;
+    }
+}
