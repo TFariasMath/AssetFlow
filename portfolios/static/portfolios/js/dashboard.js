@@ -94,6 +94,40 @@
     // Constructor de opciones específicas para gráficos de valorización
     function getValueChartOptions(chartId, groupId, series, colors, categories) {
         const base = getBaseChartOptions(chartId, groupId);
+        
+        let tooltipConfig = {
+            ...base.tooltip,
+            y: { formatter: val => '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2 }) }
+        };
+        
+        // Si estamos en modo comparación, usamos un tooltip personalizado que actualiza el panel dinámico
+        if (groupId === 'portfolioGroupCompare') {
+            tooltipConfig = {
+                ...base.tooltip,
+                custom: function({ series: srs, seriesIndex, dataPointIndex, w }) {
+                    renderWeightsComparisonTable(dataPointIndex);
+                    
+                    const dateVal = w.globals.categoryHeaders[dataPointIndex];
+                    const dateStr = new Date(dateVal).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    let html = `<div class="apexcharts-theme-dark" style="padding: 10px;">
+                        <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.75rem;">${dateStr}</div>`;
+                    
+                    srs.forEach((val, idx) => {
+                        const name = w.globals.seriesNames[idx];
+                        if (name.includes('Tendencia')) return;
+                        
+                        const color = w.globals.colors[idx];
+                        html += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; font-size: 0.72rem;">
+                            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:${color};"></span>
+                            <span>${name}: <strong>$${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
+                        </div>`;
+                    });
+                    html += `</div>`;
+                    return html;
+                }
+            };
+        }
+
         return {
             ...base,
             chart: {
@@ -107,7 +141,10 @@
                 zoom: { enabled: true, type: 'x', autoScaleYaxis: true },
                 events: {
                     zoomed: (ctx, { xaxis }) => { if (xaxis && xaxis.min && xaxis.max) handleChartZoom(xaxis.min, xaxis.max); },
-                    scrolled: (ctx, { xaxis }) => { if (xaxis && xaxis.min && xaxis.max) handleChartZoom(xaxis.min, xaxis.max); }
+                    scrolled: (ctx, { xaxis }) => { if (xaxis && xaxis.min && xaxis.max) handleChartZoom(xaxis.min, xaxis.max); },
+                    mouseLeave: function() {
+                        renderWeightsComparisonTable();
+                    }
                 }
             },
             series: series,
@@ -128,23 +165,44 @@
             },
             xaxis: { categories: categories, type: 'datetime', labels: { format: 'dd/MM/yy' } },
             yaxis: { labels: { formatter: val => '$' + (val / 1e6).toFixed(1) + 'M' } },
-            tooltip: {
-                ...base.tooltip,
-                y: { formatter: val => '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2 }) }
-            }
+            tooltip: tooltipConfig,
+            grid: { borderColor: 'rgba(255, 255, 255, 0.04)' }
         };
     }
 
     // Constructor de opciones para gráficos de pesos
     function getWeightsChartOptions(chartId, groupId, series, categories, showLegend = false) {
         const base = getBaseChartOptions(chartId, groupId);
+        
+        let tooltipConfig = {
+            ...base.tooltip,
+            y: { formatter: val => val.toFixed(2) + '%' }
+        };
+        
+        // Si es modo comparación (sin leyenda lateral), desactivamos el tooltip nativo
+        // y habilitamos la renderización en el panel dinámico inferior
+        if (!showLegend) {
+            tooltipConfig = {
+                enabled: true,
+                custom: function({ series: srs, seriesIndex, dataPointIndex, w }) {
+                    renderWeightsComparisonTable(dataPointIndex);
+                    return '<div style="display:none;"></div>';
+                }
+            };
+        }
+
         return {
             ...base,
             chart: {
                 ...base.chart,
                 type: 'area',
                 stacked: true,
-                toolbar: { show: false }
+                toolbar: { show: false },
+                events: {
+                    mouseLeave: function() {
+                        renderWeightsComparisonTable();
+                    }
+                }
             },
             colors: neonColors,
             series: series,
@@ -158,10 +216,7 @@
                 height: 250,
                 markers: { radius: 12 }
             } : { show: false },
-            tooltip: {
-                ...base.tooltip,
-                y: { formatter: val => val.toFixed(2) + '%' }
-            },
+            tooltip: tooltipConfig,
             grid: { borderColor: showLegend ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.03)' }
         };
     }
@@ -314,26 +369,101 @@
         dateEndInput.value = portfolio.max_date;
     }
 
-    function renderSharedLegend(series, colors) {
+    function renderWeightsComparisonTable(dataPointIndex = null) {
         const legendEl = document.getElementById('weights-shared-legend');
         if (!legendEl) return;
-        legendEl.innerHTML = '';
+
+        const isCompare = (portfolioSelect.value === 'compare');
+        if (!isCompare) return;
+
+        const p1 = rawEvolutionDataP1;
+        const p2 = rawEvolutionDataP2;
+        if (!p1 || p1.length === 0 || !p2 || p2.length === 0) return;
+
+        let titleStr = "Composición Promedio del Período";
+        let showAverage = (dataPointIndex === null);
+
+        if (!showAverage && dataPointIndex >= 0 && dataPointIndex < p1.length) {
+            const dateStr = p1[dataPointIndex].fecha;
+            const parts = dateStr.split('-');
+            titleStr = `Composición al ${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        // Obtener la lista de activos
+        const assetNames = Object.keys(p1[0].pesos);
         
-        series.forEach((s, idx) => {
-            const color = colors[idx % colors.length];
-            const item = document.createElement('div');
-            item.style.display = 'flex';
-            item.style.alignItems = 'center';
-            item.style.gap = '0.35rem';
-            item.style.fontSize = '0.72rem';
-            item.style.color = 'var(--text-secondary)';
-            
-            item.innerHTML = `
-                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:${color}; box-shadow: 0 0 6px ${color}80;"></span>
-                <span>${s.name}</span>
-            `;
-            legendEl.appendChild(item);
+        // Calcular pesos para mostrar
+        const weightsData = [];
+        assetNames.forEach(name => {
+            let w1, w2;
+            if (showAverage) {
+                const sum1 = p1.reduce((acc, item) => acc + item.pesos[name], 0);
+                const sum2 = p2.reduce((acc, item) => acc + item.pesos[name], 0);
+                w1 = sum1 / p1.length;
+                w2 = sum2 / p2.length;
+            } else {
+                w1 = p1[dataPointIndex].pesos[name] || 0;
+                w2 = p2[dataPointIndex].pesos[name] || 0;
+            }
+            const diff = w1 - w2;
+            weightsData.push({ name, w1, w2, diff });
         });
+
+        // Ordenar por peso promedio (o peso actual) de mayor a menor
+        weightsData.sort((a, b) => (b.w1 + b.w2) - (a.w1 + a.w2));
+
+        // Construir HTML de las tarjetas
+        let html = `
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem 0.75rem;">
+                <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 0.25rem;">
+                    <span>${titleStr}</span>
+                    <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: none; font-weight: 400;">
+                        ${showAverage ? 'Desplace el cursor sobre los gráficos para ver datos diarios' : 'Valores en el punto hovered'}
+                    </span>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; width: 100%;">
+        `;
+
+        weightsData.forEach((item, idx) => {
+            const color = neonColors[idx % neonColors.length];
+            const p1Percent = (item.w1 * 100).toFixed(2) + '%';
+            const p2Percent = (item.w2 * 100).toFixed(2) + '%';
+            const diffVal = item.diff * 100;
+            let diffText = '';
+            let diffColor = 'var(--text-muted)';
+            
+            if (diffVal > 0.005) {
+                diffText = `+${diffVal.toFixed(2)}%`;
+                diffColor = '#00f3ff'; // Cian (P1 mayor)
+            } else if (diffVal < -0.005) {
+                diffText = `${diffVal.toFixed(2)}%`;
+                diffColor = '#cc00ff'; // Púrpura (P2 mayor)
+            } else {
+                diffText = '0.00%';
+            }
+
+            html += `
+                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 6px; padding: 0.4rem 0.6rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.4rem; min-width: 0; flex: 1;">
+                        <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background-color:${color}; box-shadow: 0 0 5px ${color}80; flex-shrink: 0;"></span>
+                        <span style="font-size: 0.72rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">${item.name}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 500; flex-shrink: 0;">
+                        <span style="color: #00f3ff;" title="Peso en Portafolio 1">${p1Percent}</span>
+                        <span style="color: var(--text-muted); font-size: 0.65rem;">/</span>
+                        <span style="color: #cc00ff;" title="Peso en Portafolio 2">${p2Percent}</span>
+                        <span style="color: ${diffColor}; font-size: 0.68rem; font-weight: 600; min-width: 45px; text-align: right;" title="Diferencia (P1 - P2)">${diffText}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        legendEl.innerHTML = html;
     }
 
     function getWeightsSeries(data, groupEnabled) {
@@ -392,8 +522,8 @@
         const series1 = getWeightsSeries(p1, groupAssetsCheck.checked);
         const series2 = getWeightsSeries(p2, groupAssetsCheck.checked);
 
-        // Renderizar leyenda compartida abajo
-        renderSharedLegend(series1, neonColors);
+        // Renderizar tabla dinámica comparativa en promedio por defecto
+        renderWeightsComparisonTable();
 
         // Gráficos de área apilados individuales compartiendo el mismo grupo de sincronización
         const options1 = getWeightsChartOptions('weightsChartP1', 'portfolioGroupCompare', series1, categories, false);
