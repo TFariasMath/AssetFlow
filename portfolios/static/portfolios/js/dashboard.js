@@ -41,6 +41,7 @@
     let weightsChart = null;
     let weightsChartP1 = null;
     let weightsChartP2 = null;
+    let isModalOpen = false;
 
 
     let portfoliosData = [];
@@ -240,7 +241,7 @@
             const filteredP1 = rawEvolutionDataP1.filter(item => item.fecha >= startStr && item.fecha <= endStr);
             const filteredP2 = rawEvolutionDataP2.filter(item => item.fecha >= startStr && item.fecha <= endStr);
             if (filteredP1.length > 0 && filteredP2.length > 0) {
-                calculateComparativeKPIs(filteredP1, filteredP2);
+                calculateComparativeKPIs(filteredP1, filteredP2, true);
             }
         } else {
             if (rawEvolutionData.length === 0) return;
@@ -337,7 +338,7 @@
     groupAssetsCheck.addEventListener('change', () => {
         const isCompare = (portfolioSelect.value === 'compare');
         if (isCompare) {
-            if (rawEvolutionDataP1.length > 0 && rawEvolutionDataP2.length > 0) {
+            if (isModalOpen && rawEvolutionDataP1.length > 0 && rawEvolutionDataP2.length > 0) {
                 renderCompareWeightsCharts(rawEvolutionDataP1, rawEvolutionDataP2);
             }
         } else {
@@ -370,7 +371,8 @@
     }
 
     function renderWeightsComparisonTable(dataPointIndex = null) {
-        const legendEl = document.getElementById('weights-shared-legend');
+        const containerId = isModalOpen ? 'modal-weights-shared-legend' : 'weights-shared-legend';
+        const legendEl = document.getElementById(containerId);
         if (!legendEl) return;
 
         const isCompare = (portfolioSelect.value === 'compare');
@@ -529,8 +531,8 @@
         const options1 = getWeightsChartOptions('weightsChartP1', 'portfolioGroupCompare', series1, categories, false);
         const options2 = getWeightsChartOptions('weightsChartP2', 'portfolioGroupCompare', series2, categories, false);
 
-        const chartEl1 = document.querySelector("#weights-chart-p1");
-        const chartEl2 = document.querySelector("#weights-chart-p2");
+        const chartEl1 = document.querySelector("#modal-weights-chart-p1");
+        const chartEl2 = document.querySelector("#modal-weights-chart-p2");
 
         if (chartEl1 && chartEl2) {
             chartEl1.innerHTML = '';
@@ -539,6 +541,70 @@
             weightsChartP1.render();
             weightsChartP2 = new ApexCharts(chartEl2, options2);
             weightsChartP2.render();
+        }
+    }
+
+    function createWeightsCompareModal() {
+        let modal = document.getElementById('weights-compare-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'weights-compare-modal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h2>Comparación Detallada de Composición (w_i,t)</h2>
+                        <button class="modal-close-btn" id="modal-close-btn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="modal-charts-row">
+                            <div class="modal-chart-col">
+                                <div class="modal-chart-title modal-p1-title">Portafolio 1</div>
+                                <div id="modal-weights-chart-p1" class="modal-chart-viewport"></div>
+                            </div>
+                            <div class="modal-chart-col">
+                                <div class="modal-chart-title modal-p2-title">Portafolio 2</div>
+                                <div id="modal-weights-chart-p2" class="modal-chart-viewport"></div>
+                            </div>
+                        </div>
+                        <div id="modal-weights-shared-legend" class="modal-legend-container"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            modal.querySelector('#modal-close-btn').addEventListener('click', closeWeightsCompareModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeWeightsCompareModal();
+            });
+        }
+    }
+
+    function openWeightsCompareModal() {
+        createWeightsCompareModal();
+        const modal = document.getElementById('weights-compare-modal');
+        if (modal) {
+            modal.classList.add('active');
+            isModalOpen = true;
+            renderCompareWeightsCharts(rawEvolutionDataP1, rawEvolutionDataP2);
+        }
+    }
+
+    function closeWeightsCompareModal() {
+        const modal = document.getElementById('weights-compare-modal');
+        if (modal) {
+            modal.classList.remove('active');
+            isModalOpen = false;
+            
+            // Destruir gráficos para liberar recursos
+            if (weightsChartP1) {
+                try { weightsChartP1.destroy(); } catch(e){}
+                weightsChartP1 = null;
+            }
+            if (weightsChartP2) {
+                try { weightsChartP2.destroy(); } catch(e){}
+                weightsChartP2 = null;
+            }
         }
     }
 
@@ -554,20 +620,22 @@
             }
             container.classList.add('compare-mode');
             container.innerHTML = `
-                <div class="weights-compare-wrapper">
-                    <div class="weights-compare-row">
-                        <div class="weights-compare-col">
-                            <div class="weights-compare-col-title weights-compare-col-p1">Portafolio 1</div>
-                            <div id="weights-chart-p1" class="weights-compare-chart"></div>
-                        </div>
-                        <div class="weights-compare-col">
-                            <div class="weights-compare-col-title weights-compare-col-p2">Portafolio 2</div>
-                            <div id="weights-chart-p2" class="weights-compare-chart"></div>
-                        </div>
-                    </div>
-                    <div id="weights-shared-legend" class="weights-compare-legend"></div>
+                <div class="weights-compare-inactive-card">
+                    <svg class="inactive-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                        <path d="M3 3v18h18M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                    </svg>
+                    <h3>Comparación de Composición de Activos</h3>
+                    <p>Analice la evolución de la distribución de pesos de ambos portafolios en paralelo a pantalla completa.</p>
+                    <button class="btn btn-primary" id="btn-expand-weights">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                        </svg>
+                        Expandir Comparativa
+                    </button>
                 </div>
             `;
+            // Asociar click
+            document.getElementById('btn-expand-weights').addEventListener('click', openWeightsCompareModal);
         } else {
             titleEl.textContent = "Distribución de Pesos de Activos (w_i,t)";
             if (weightsChartP1) {
@@ -613,7 +681,9 @@
                 await fetchComparativeEconometrics(start, end);
                 
                 renderOverlaidValueChart(rawEvolutionDataP1, rawEvolutionDataP2);
-                renderCompareWeightsCharts(rawEvolutionDataP1, rawEvolutionDataP2);
+                if (isModalOpen) {
+                    renderCompareWeightsCharts(rawEvolutionDataP1, rawEvolutionDataP2);
+                }
             } catch (err) {
                 console.error(err);
             }
