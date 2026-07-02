@@ -301,6 +301,7 @@
             await loadChartAndEconometricData();
         } catch (err) {
             console.error(err);
+            alert('Error de inicialización:\n' + err.message + '\n\nSi el proyecto se acaba de clonar, por favor haga clic en "Procesar ETL" para configurar la base de datos e importar la información inicial.');
         } finally {
             hideLoader();
         }
@@ -1171,5 +1172,4 @@
 
 
 
-    }
 })();
