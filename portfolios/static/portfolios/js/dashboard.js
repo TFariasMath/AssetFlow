@@ -114,15 +114,15 @@
             colors: colors,
             stroke: {
                 curve: 'smooth',
-                width: series.length > 2 ? [2.5, 2.5, 1.2, 1.2] : [2.5, 1.5],
-                dashArray: series.length > 2 ? [0, 0, 4, 4] : [0, 5]
+                width: series.map(s => (s.name.includes('Tendencia') || s.name.includes('SMA')) ? 1.2 : 2.5),
+                dashArray: series.map(s => (s.name.includes('Tendencia') || s.name.includes('SMA')) ? 4 : 0)
             },
             fill: {
                 type: 'gradient',
                 gradient: {
                     shadeIntensity: 1,
-                    opacityFrom: colors.length > 2 ? [0.3, 0.3, 0.02, 0.02] : [0.35, 0.05],
-                    opacityTo: colors.length > 2 ? [0.02, 0.02, 0.01, 0.01] : [0.02, 0.01],
+                    opacityFrom: series.map(s => (s.name.includes('Tendencia') || s.name.includes('SMA')) ? 0.02 : 0.3),
+                    opacityTo: series.map(s => (s.name.includes('Tendencia') || s.name.includes('SMA')) ? 0.01 : 0.02),
                     stops: [0, 95]
                 }
             },
