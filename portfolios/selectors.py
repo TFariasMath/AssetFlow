@@ -239,6 +239,12 @@ def portfolios_cointegration_test(*, fecha_inicio: date, fecha_fin: date) -> Dic
         # trend='ct' incluye constante y tendencia lineal
         stat, p_value, crit_values = coint(values_1, values_2, trend='ct', autolag='AIC')
         
+        import math
+        if math.isnan(stat) or math.isinf(stat) or math.isnan(p_value) or math.isinf(p_value):
+            return {
+                "error": "El test de cointegración falló debido a colinealidad perfecta o varianza cero en los datos."
+            }
+
         is_cointegrated = p_value <= 0.05
         
         if is_cointegrated:

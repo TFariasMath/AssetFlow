@@ -1,4 +1,7 @@
 from django.test import TestCase
+from django.urls import reverse
+from rest_framework.test import APITestCase
+from unittest.mock import patch
 from datetime import date
 from decimal import Decimal
 from portfolios.models import (
@@ -183,8 +186,8 @@ class MedallionPipelineTests(TestCase):
         for i in range(15):
             curr_d = base_date + timedelta(days=i)
             date_str = f"{curr_d.strftime('%Y-%m-%d')} 00:00:00"
-            price_a = float(100 + i)
-            price_b = float(200 - i * 0.5)
+            price_a = float(100 + i + (i % 3) * 2)
+            price_b = float(200 - i * 0.5 + (i % 2) * 5)
             
             RawPriceIngestion.objects.create(raw_date=date_str, raw_asset_name="Activo A", raw_price_value=str(price_a))
             RawPriceIngestion.objects.create(raw_date=date_str, raw_asset_name="Activo B", raw_price_value=str(price_b))
@@ -222,3 +225,74 @@ class MedallionPipelineTests(TestCase):
         self.assertIn("p_value", coint_result)
         self.assertIn("is_cointegrated", coint_result)
         self.assertIn("conclusion", coint_result)
+
+
+class PortfolioApiTests(APITestCase):
+    def setUp(self):
+        # 1. Limpiar e Ingestar
+        RawWeightIngestion.objects.all().delete()
+        RawPriceIngestion.objects.all().delete()
+
+        RawWeightIngestion.objects.create(
+            raw_date="2022-02-15 00:00:00",
+            raw_asset_name="Activo A",
+            raw_portfolio_1_weight="0.60",
+            raw_portfolio_2_weight="0.30"
+        )
+        RawWeightIngestion.objects.create(
+            raw_date="2022-02-15 00:00:00",
+            raw_asset_name="Activo B",
+            raw_portfolio_1_weight="0.40",
+            raw_portfolio_2_weight="0.70"
+        )
+
+        from datetime import timedelta
+        base_date = date(2022, 2, 15)
+        for i in range(15):
+            curr_d = base_date + timedelta(days=i)
+            date_str = f"{curr_d.strftime('%Y-%m-%d')} 00:00:00"
+            price_a = float(100 + i + (i % 3) * 2)
+            price_b = float(200 - i * 0.5 + (i % 2) * 5)
+            RawPriceIngestion.objects.create(raw_date=date_str, raw_asset_name="Activo A", raw_price_value=str(price_a))
+            RawPriceIngestion.objects.create(raw_date=date_str, raw_asset_name="Activo B", raw_price_value=str(price_b))
+
+        _etl_transform_silver()
+        _etl_aggregate_gold()
+
+    def test_portfolio_list_api(self):
+        url = reverse('portfolios:portfolio-list-api')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]['name'], 'Portafolio 1')
+
+    def test_portfolio_evolution_api(self):
+        port_1 = Portfolio.objects.get(name="Portafolio 1")
+        url = reverse('portfolios:portfolio-evolution-api', kwargs={'portfolio_id': port_1.id})
+        response = self.client.get(url, {'fecha_inicio': '2022-02-15', 'fecha_fin': '2022-03-01'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('kpis', response.data)
+        self.assertIn('series', response.data)
+        self.assertEqual(len(response.data['series']), 15)
+
+    def test_portfolio_econometrics_api(self):
+        port_1 = Portfolio.objects.get(name="Portafolio 1")
+        url = reverse('portfolios:portfolio-econometrics-api', kwargs={'portfolio_id': port_1.id})
+        response = self.client.get(url, {'fecha_inicio': '2022-02-15', 'fecha_fin': '2022-03-01'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('adf_statistic', response.data)
+        self.assertIn('p_value', response.data)
+
+    def test_portfolios_cointegration_api(self):
+        url = reverse('portfolios:portfolios-cointegration-api')
+        response = self.client.get(url, {'fecha_inicio': '2022-02-15', 'fecha_fin': '2022-03-01'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('coint_statistic' in response.data or 'error' in response.data)
+
+    @patch('django.core.management.call_command')
+    def test_portfolio_etl_api(self, mock_call_command):
+        url = reverse('portfolios:portfolio-etl-api')
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['status'], 'success')
+        mock_call_command.assert_called_once_with('load_data')
