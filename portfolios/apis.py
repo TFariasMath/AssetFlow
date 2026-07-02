@@ -130,3 +130,22 @@ class PortfoliosCointegrationApi(APIView):
         # 3. Serializar y responder
         output = self.OutputSerializer(result).data
         return Response(output, status=status.HTTP_200_OK)
+
+
+class PortfolioEtlApi(APIView):
+    """
+    API endpoint para ejecutar el comando load_data (migrar y recargar datos desde Excel) desde la interfaz.
+    """
+    def post(self, request):
+        from django.core.management import call_command
+        try:
+            call_command('load_data')
+            return Response({
+                "status": "success",
+                "message": "Base de datos migrada y datos del archivo Excel cargados exitosamente."
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "status": "error",
+                "message": f"Error al ejecutar el proceso ETL: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

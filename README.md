@@ -35,16 +35,19 @@ python manage.py runserver
 
 Luego abrir `http://localhost:8000/` en el navegador.
 
-### Comandos Utiles
+> [!TIP]
+> **Administración desde la Interfaz**: Ya no necesitas usar la terminal para aplicar migraciones o recargar los datos cuando modifiques el archivo `datos.xlsx`. Ahora puedes hacer clic en el botón **"Procesar ETL"** en la barra superior del programa para migrar y cargar los datos automáticamente desde la propia web.
+
+### Comandos Útiles (Terminal)
 
 ```bash
-# Recargar datos desde datos.xlsx (limpia y re-importa todo)
+# Recargar datos desde datos.xlsx manualmente por terminal (limpia y re-importa todo)
 python manage.py load_data
 
-# Ejecutar tests
+# Ejecutar la suite de tests unitarios
 python manage.py test portfolios
 
-# Shell de Django para explorar datos
+# Shell interactivo de Django para explorar el modelo ORM
 python manage.py shell
 ```
 

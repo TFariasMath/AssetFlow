@@ -6,7 +6,8 @@
         portfolios: () => '/api/portfolios/',
         evolution: (id, start, end) => `/api/portfolios/${id}/evolution/?fecha_inicio=${start}&fecha_fin=${end}`,
         cointegration: (start, end) => `/api/portfolios/cointegration/?fecha_inicio=${start}&fecha_fin=${end}`,
-        econometrics: (id, start, end) => `/api/portfolios/${id}/econometrics/?fecha_inicio=${start}&fecha_fin=${end}`
+        econometrics: (id, start, end) => `/api/portfolios/${id}/econometrics/?fecha_inicio=${start}&fecha_fin=${end}`,
+        etl: () => '/api/maintenance/load-data/'
     };
 
     // 2. Caché de Elementos del DOM
@@ -15,6 +16,7 @@
     const dateStartInput = document.getElementById('date-start');
     const dateEndInput = document.getElementById('date-end');
     const btnUpdate = document.getElementById('btn-update');
+    const btnEtl = document.getElementById('btn-etl');
     const btnCsv = document.getElementById('btn-csv');
     const btnPdf = document.getElementById('btn-pdf');
     const groupAssetsCheck = document.getElementById('group-assets');
@@ -322,6 +324,30 @@
         showLoader();
         await loadChartAndEconometricData();
         hideLoader();
+    });
+
+    btnEtl.addEventListener('click', async () => {
+        if (!confirm("¿Está seguro de que desea ejecutar las migraciones y recargar los datos desde 'datos.xlsx'?\n\nEsto re-creará la base de datos local e importará la información fresca. El proceso puede tomar unos segundos.")) {
+            return;
+        }
+        showLoader();
+        try {
+            const res = await fetch(API_ENDPOINTS.etl(), {
+                method: 'POST'
+            });
+            const data = await res.json();
+            if (res.ok && data.status === 'success') {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error al ejecutar ETL:\n' + (data.message || 'Error desconocido'));
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Ocurrió un error al intentar conectarse al servidor:\n' + err.message);
+        } finally {
+            hideLoader();
+        }
     });
 
     showSmaCheck.addEventListener('change', () => {
@@ -1159,53 +1185,99 @@
 
 
     function exportToCSV(data) {
-        const assetNames = Object.keys(data[0].pesos);
-        let csvContent = "Fecha,Valor Total (USD)," + assetNames.map(n => n.replace(/,/g, '')).join(",") + "\n";
-        data.forEach(item => {
-            const row = [
-                item.fecha,
-                parseFloat(item.valor_total).toFixed(2),
-                ...assetNames.map(name => (item.pesos[name] * 100).toFixed(4))
-            ];
-            csvContent += row.join(",") + "\n";
-        });
+        try {
+            if (!data || data.length === 0) {
+                alert('No hay datos para exportar.');
+                return;
+            }
+            const firstItem = data[0];
+            if (!firstItem || !firstItem.pesos) {
+                alert('Los datos del portafolio no contienen pesos de activos.');
+                return;
+            }
+            const assetNames = Object.keys(firstItem.pesos);
+            let csvContent = "Fecha,Valor Total (USD)," + assetNames.map(n => n.replace(/,/g, '')).join(",") + "\n";
+            data.forEach(item => {
+                const row = [
+                    item.fecha,
+                    parseFloat(item.valor_total || 0).toFixed(2),
+                    ...assetNames.map(name => {
+                        const val = item.pesos && item.pesos[name] !== undefined ? item.pesos[name] : 0;
+                        return (val * 100).toFixed(4);
+                    })
+                ];
+                csvContent += row.join(",") + "\n";
+            });
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        const portName = portfolioSelect.options[portfolioSelect.selectedIndex].text.replace(/\s+/g, '_');
-        link.setAttribute("download", `${portName}_evolucion_${dateStartInput.value}_a_${dateEndInput.value}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            const portName = portfolioSelect.options[portfolioSelect.selectedIndex].text.replace(/\s+/g, '_');
+            link.setAttribute("download", `${portName}_evolucion_${dateStartInput.value}_a_${dateEndInput.value}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            alert('Error al exportar CSV: ' + e.message);
+        }
     }
 
     function exportComparativeCSV(p1, p2) {
-        const assetNames = Object.keys(p1[0].pesos);
-        let csvContent = "Fecha,Valor Total P1 (USD),Valor Total P2 (USD)," + 
-                         assetNames.map(n => `Peso P1 ${n.replace(/,/g, '')} (%)`).join(",") + "," +
-                         assetNames.map(n => `Peso P2 ${n.replace(/,/g, '')} (%)`).join(",") + "\n";
-        
-        p1.forEach((item, idx) => {
-            const item2 = p2[idx];
-            const row = [
-                item.fecha,
-                parseFloat(item.valor_total).toFixed(2),
-                parseFloat(item2.valor_total).toFixed(2),
-                ...assetNames.map(name => (item.pesos[name] * 100).toFixed(4)),
-                ...assetNames.map(name => (item2.pesos[name] * 100).toFixed(4))
-            ];
-            csvContent += row.join(",") + "\n";
-        });
+        try {
+            if (!p1 || p1.length === 0 || !p2 || p2.length === 0) {
+                alert('No hay datos suficientes para exportar la comparación.');
+                return;
+            }
+            const assetNames = Object.keys(p1[0].pesos || {});
+            if (assetNames.length === 0) {
+                alert('El portafolio 1 no contiene pesos de activos.');
+                return;
+            }
+            let csvContent = "Fecha,Valor Total P1 (USD),Valor Total P2 (USD)," + 
+                             assetNames.map(n => `Peso P1 ${n.replace(/,/g, '')} (%)`).join(",") + "," +
+                             assetNames.map(n => `Peso P2 ${n.replace(/,/g, '')} (%)`).join(",") + "\n";
+            
+            // Mapear p2 por fecha para emparejar de manera exacta
+            const p2Map = {};
+            p2.forEach(item => {
+                p2Map[item.fecha] = item;
+            });
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `Comparativa_Portafolios_evolucion_${dateStartInput.value}_a_${dateEndInput.value}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            p1.forEach(item => {
+                const item2 = p2Map[item.fecha];
+                if (!item2) return; // Saltar si la fecha no coincide en ambos
+                
+                const row = [
+                    item.fecha,
+                    parseFloat(item.valor_total || 0).toFixed(2),
+                    parseFloat(item2.valor_total || 0).toFixed(2),
+                    ...assetNames.map(name => {
+                        const val = item.pesos && item.pesos[name] !== undefined ? item.pesos[name] : 0;
+                        return (val * 100).toFixed(4);
+                    }),
+                    ...assetNames.map(name => {
+                        const val = item2.pesos && item2.pesos[name] !== undefined ? item2.pesos[name] : 0;
+                        return (val * 100).toFixed(4);
+                    })
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Comparativa_Portafolios_evolucion_${dateStartInput.value}_a_${dateEndInput.value}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            alert('Error al exportar CSV comparativo: ' + e.message);
+        }
     }
 })();
