@@ -349,6 +349,8 @@
                 setupDateLimits(portfolio);
             }
         }
+        // Auto-actualizar el dashboard al seleccionar otra opción
+        btnUpdate.click();
     });
 
     btnUpdate.addEventListener('click', async () => {
