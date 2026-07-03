@@ -39,9 +39,14 @@ class PortfolioEvolutionSeriesSerializer(serializers.Serializer):
     valor_total = serializers.DecimalField(max_digits=18, decimal_places=2)
     pesos = serializers.DictField(child=serializers.FloatField())
 
+class MinValuationSerializer(serializers.Serializer):
+    value = serializers.FloatField()
+    date = serializers.DateField()
+
 class PortfolioEvolutionOutputSerializer(serializers.Serializer):
     kpis = PortfolioEvolutionKpiSerializer()
     series = PortfolioEvolutionSeriesSerializer(many=True)
+    min_valuation = MinValuationSerializer()
 
 class PortfolioEvolutionApi(APIView):
     """

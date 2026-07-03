@@ -134,6 +134,7 @@ class MedallionPipelineTests(TestCase):
         )
         evolution = evolution_data['series']
         kpis = evolution_data['kpis']
+        min_val = evolution_data['min_valuation']
 
         # Debe tener 2 días de evolución
         self.assertEqual(len(evolution), 2)
@@ -142,6 +143,10 @@ class MedallionPipelineTests(TestCase):
         self.assertAlmostEqual(kpis['roi'], 4.0)
         self.assertAlmostEqual(kpis['mdd'], 0.0)
         self.assertEqual(kpis['star_asset'], 'Activo A')
+        
+        # Verificar mínimo en el backend
+        self.assertEqual(min_val['date'], date_0)
+        self.assertAlmostEqual(min_val['value'], 1000000000.0)
         
         # Verificar el día inicial (t0)
         self.assertEqual(evolution[0]['fecha'], date_0)
@@ -313,6 +318,9 @@ class PortfolioApiTests(APITestCase):
         self.assertIn('kpis', response.data)
         self.assertIn('series', response.data)
         self.assertEqual(len(response.data['series']), 15)
+        self.assertIn('min_valuation', response.data)
+        self.assertIn('value', response.data['min_valuation'])
+        self.assertIn('date', response.data['min_valuation'])
 
     def test_portfolio_econometrics_api(self):
         port_1 = Portfolio.objects.get(name="Portafolio 1")

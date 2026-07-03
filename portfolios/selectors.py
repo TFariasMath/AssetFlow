@@ -147,9 +147,17 @@ def portfolio_evolution_get(*, portfolio_id: int, fecha_inicio: date, fecha_fin:
         'star_asset_return': round(top_return, 4) if top_asset else None
     }
 
+    # 6. Calcular el mínimo valor de la valorización y su correspondiente fecha
+    min_snap = min(snapshots, key=lambda s: s.total_value)
+    min_valuation = {
+        'value': float(min_snap.total_value),
+        'date': min_snap.date
+    }
+
     return {
         'kpis': kpis,
-        'series': series_data
+        'series': series_data,
+        'min_valuation': min_valuation
     }
 
 def portfolio_list_get() -> List[Dict[str, Any]]:

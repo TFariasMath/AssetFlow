@@ -21,6 +21,7 @@
     const btnPdf = document.getElementById('btn-pdf');
     const groupAssetsCheck = document.getElementById('group-assets');
     const showSmaCheck = document.getElementById('show-sma');
+    const showMinCheck = document.getElementById('show-min');
 
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -52,6 +53,9 @@
     let rawEvolutionDataP1 = [];
     let rawEvolutionDataP2 = [];
     let differenceData = [];
+    let minValuationSingle = null;
+    let minValuationP1 = null;
+    let minValuationP2 = null;
 
     const neonColors = [
         '#00f3ff', // EEUU - Electric Cyan
@@ -384,6 +388,17 @@
     });
 
     showSmaCheck.addEventListener('change', () => {
+        const isCompare = (portfolioSelect.value === 'compare');
+        if (isCompare) {
+            if (rawEvolutionDataP1.length > 0 && rawEvolutionDataP2.length > 0) {
+                renderOverlaidValueChart(rawEvolutionDataP1, rawEvolutionDataP2);
+            }
+        } else {
+            if (rawEvolutionData.length > 0) renderValueChart(rawEvolutionData);
+        }
+    });
+
+    showMinCheck.addEventListener('change', () => {
         const isCompare = (portfolioSelect.value === 'compare');
         if (isCompare) {
             if (rawEvolutionDataP1.length > 0 && rawEvolutionDataP2.length > 0) {
@@ -818,6 +833,8 @@
                 const dataDiff = results[2];
                 rawEvolutionDataP1 = dataP1.series;
                 rawEvolutionDataP2 = dataP2.series;
+                minValuationP1 = dataP1.min_valuation;
+                minValuationP2 = dataP2.min_valuation;
                 differenceData = dataDiff;
                 updateDiffCard();
 
@@ -845,6 +862,7 @@
                 if (!evolutionRes.ok) throw new Error('Error al obtener evolucion del portafolio');
                 const data = await evolutionRes.json();
                 rawEvolutionData = data.series;
+                minValuationSingle = data.min_valuation;
 
                 if (rawEvolutionData.length === 0) {
                     alert('No se encontraron registros.');
@@ -1308,6 +1326,35 @@
 
         const options = getValueChartOptions('valueChartSingle', 'portfolioGroupSingle', series, ['#10b981', '#3b82f6'], categories);
 
+        if (showMinCheck.checked && minValuationSingle) {
+            const parts = minValuationSingle.date.split('-');
+            const minDateFormatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            const minValueNumber = parseFloat(minValuationSingle.value);
+            options.annotations = {
+                points: [
+                    {
+                        x: new Date(minValuationSingle.date + 'T00:00:00').getTime(),
+                        y: minValueNumber,
+                        marker: {
+                            size: 6,
+                            fillColor: '#ef4444',
+                            strokeColor: '#fff',
+                            radius: 2
+                        },
+                        label: {
+                            borderColor: '#ef4444',
+                            offsetY: 0,
+                            style: {
+                                color: '#fff',
+                                background: '#ef4444'
+                            },
+                            text: `Mínimo: $${(minValueNumber/1e6).toFixed(1)}M (${minDateFormatted})`
+                        }
+                    }
+                ]
+            };
+        }
+
         const chartEl = document.querySelector("#value-chart");
         chartEl.innerHTML = '';
         valueChart = new ApexCharts(chartEl, options);
@@ -1347,6 +1394,59 @@
 
         const colors = showSmaCheck.checked ? ['#00f3ff', '#cc00ff', '#00f3ffaa', '#cc00ffaa'] : ['#00f3ff', '#cc00ff'];
         const options = getValueChartOptions('valueChartCompare', 'portfolioGroupCompare', series, colors, categories);
+
+        if (showMinCheck.checked && minValuationP1 && minValuationP2) {
+            const parts1 = minValuationP1.date.split('-');
+            const minDateFormatted1 = `${parts1[2]}/${parts1[1]}/${parts1[0]}`;
+            const minValueNumber1 = parseFloat(minValuationP1.value);
+
+            const parts2 = minValuationP2.date.split('-');
+            const minDateFormatted2 = `${parts2[2]}/${parts2[1]}/${parts2[0]}`;
+            const minValueNumber2 = parseFloat(minValuationP2.value);
+
+            options.annotations = {
+                points: [
+                    {
+                        x: new Date(minValuationP1.date + 'T00:00:00').getTime(),
+                        y: minValueNumber1,
+                        marker: {
+                            size: 6,
+                            fillColor: '#00f3ff',
+                            strokeColor: '#fff',
+                            radius: 2
+                        },
+                        label: {
+                            borderColor: '#00f3ff',
+                            offsetY: 0,
+                            style: {
+                                color: '#030712',
+                                background: '#00f3ff'
+                            },
+                            text: `Mín P1: $${(minValueNumber1/1e6).toFixed(1)}M (${minDateFormatted1})`
+                        }
+                    },
+                    {
+                        x: new Date(minValuationP2.date + 'T00:00:00').getTime(),
+                        y: minValueNumber2,
+                        marker: {
+                            size: 6,
+                            fillColor: '#cc00ff',
+                            strokeColor: '#fff',
+                            radius: 2
+                        },
+                        label: {
+                            borderColor: '#cc00ff',
+                            offsetY: 0,
+                            style: {
+                                color: '#fff',
+                                background: '#cc00ff'
+                            },
+                            text: `Mín P2: $${(minValueNumber2/1e6).toFixed(1)}M (${minDateFormatted2})`
+                        }
+                    }
+                ]
+            };
+        }
 
         const chartEl = document.querySelector("#value-chart");
         chartEl.innerHTML = '';
