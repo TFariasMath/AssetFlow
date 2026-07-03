@@ -369,19 +369,36 @@ body {
     box-shadow: 0 8px 24px rgba(59, 130, 246, 0.08);
 }
 
-/* Custom Scrollbar for Econometrics Cards */
-.econometric-card::-webkit-scrollbar {
-    width: 6px;
+/* Custom Scrollbars globales para todo el dashboard (econometría, leyenda, etc.) */
+::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
 }
-.econometric-card::-webkit-scrollbar-track {
-    background: transparent;
+::-webkit-scrollbar-track {
+    background: transparent !important;
 }
-.econometric-card::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.45) !important;
+    border-radius: 4px !important;
 }
-.econometric-card::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-solid);
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.75) !important;
+}
+
+/* Forzar barra de scroll visible y clara en leyendas de ApexCharts */
+.apexcharts-legend::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+}
+.apexcharts-legend::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+.apexcharts-legend::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.5) !important;
+    border-radius: 4px !important;
+}
+.apexcharts-legend::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.8) !important;
 }
 
 .chart-box-header {

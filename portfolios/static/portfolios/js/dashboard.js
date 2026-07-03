@@ -215,10 +215,62 @@
             ...base.tooltip,
             y: { formatter: val => val.toFixed(2) + '%' }
         };
-        
-        // Si es modo comparación (sin leyenda lateral), desactivamos el tooltip nativo
-        // y habilitamos la renderización en el panel dinámico inferior
-        if (!showLegend) {
+
+        if (showLegend) {
+            tooltipConfig = {
+                ...base.tooltip,
+                custom: function({ series: srs, seriesIndex, dataPointIndex, w }) {
+                    try {
+                        const dateVal = categories[dataPointIndex];
+                        if (!dateVal) return '';
+                        const parts = dateVal.split('-');
+                        const dateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        
+                        const items = [];
+                        srs.forEach((col, idx) => {
+                            if (!col) return;
+                            const name = w.globals.seriesNames[idx];
+                            const val = col[dataPointIndex];
+                            if (val !== undefined && val !== null) {
+                                items.push({
+                                    name: name,
+                                    val: val,
+                                    color: w.globals.colors[idx]
+                                });
+                            }
+                        });
+
+                        // Ordenar de mayor a menor peso
+                        items.sort((a, b) => b.val - a.val);
+
+                        const useColumns = items.length > 8;
+                        const listStyle = useColumns 
+                            ? 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; max-width: 320px;' 
+                            : 'display: flex; flex-direction: column; gap: 3px;';
+
+                        let html = `<div class="apexcharts-theme-dark" style="padding: 8px 10px; background: rgba(17, 24, 39, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                            <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.72rem; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 3px;">${dateStr}</div>
+                            <div style="${listStyle}">`;
+
+                        items.forEach(item => {
+                            html += `<div style="display: flex; align-items: center; gap: 5px; font-size: 0.65rem; color: #d1d5db; min-width: 120px;">
+                                <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${item.color};"></span>
+                                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px;">${item.name}:</span>
+                                <strong style="color: #fff; margin-left: auto;">${item.val.toFixed(2)}%</strong>
+                            </div>`;
+                        });
+
+                        html += `</div></div>`;
+                        return html;
+                    } catch (err) {
+                        console.error(err);
+                        return '';
+                    }
+                }
+            };
+        } else {
+            // Si es modo comparación (sin leyenda lateral), desactivamos el tooltip nativo
+            // y habilitamos la renderización en el panel dinámico inferior
             tooltipConfig = {
                 enabled: true,
                 custom: function({ series: srs, seriesIndex, dataPointIndex, w }) {
