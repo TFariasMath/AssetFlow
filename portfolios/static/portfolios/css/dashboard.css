@@ -840,6 +840,54 @@ footer {
     border-top: 1px solid rgba(255, 255, 255, 0.03);
 }
 
+/* Comparison Difference Card - Floating compact badge overlay */
+.comparison-diff-card {
+    position: absolute;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    background: rgba(3, 7, 18, 0.7);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 0.3rem 0.55rem;
+    z-index: 20;
+    font-size: 0.65rem;
+    font-family: 'JetBrains Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.diff-mini-date {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.diff-mini-p1 {
+    color: #00f3ff;
+    font-weight: 600;
+}
+.diff-mini-vs {
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 0.55rem;
+}
+.diff-mini-p2 {
+    color: #cc00ff;
+    font-weight: 600;
+}
+.diff-mini-sep {
+    color: rgba(255, 255, 255, 0.1);
+}
+.diff-mini-delta {
+    font-weight: 700;
+}
+.diff-mini-pct {
+    font-weight: 600;
+    color: #fbbf24;
+}
+
 /* Adaptabilidad y Diseño Responsivo */
 @media (max-width: 1024px) {
     html, body {

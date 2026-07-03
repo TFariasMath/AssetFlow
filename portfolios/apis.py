@@ -146,6 +146,7 @@ class PortfolioComparisonDifferenceApi(APIView):
         valor_p1 = serializers.FloatField()
         valor_p2 = serializers.FloatField()
         diferencia = serializers.FloatField()
+        diferencia_pct = serializers.FloatField()
 
     def get(self, request):
         filter_serializer = self.FilterSerializer(data=request.query_params)

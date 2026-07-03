@@ -118,8 +118,17 @@
                         <label for="show-sma">Tendencia SMA 20</label>
                     </div>
                 </div>
-                <div class="chart-viewport">
+                <div class="chart-viewport" style="position: relative;">
                     <div id="value-chart" style="width: 100%;"></div>
+                    <div id="comparison-diff-card" class="comparison-diff-card" style="display: none;">
+                        <span class="diff-mini-date" id="diff-card-date">--</span>
+                        <span class="diff-mini-p1" id="diff-p1-value">$--</span>
+                        <span class="diff-mini-vs">vs</span>
+                        <span class="diff-mini-p2" id="diff-p2-value">$--</span>
+                        <span class="diff-mini-sep">|</span>
+                        <span class="diff-mini-delta" id="diff-abs-value">$--</span>
+                        <span class="diff-mini-pct" id="diff-pct-value">--%</span>
+                    </div>
                 </div>
             </div>
 

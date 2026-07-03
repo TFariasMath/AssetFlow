@@ -70,9 +70,9 @@
 
     function timestampToDateStr(timestamp) {
         const d = new Date(timestamp);
-        const year = d.getUTCFullYear();
-        const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(d.getUTCDate()).padStart(2, '0');
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     }
 
@@ -111,6 +111,7 @@
                 ...base.tooltip,
                 custom: function({ series: srs, seriesIndex, dataPointIndex, w }) {
                     renderWeightsComparisonTable(dataPointIndex);
+                    updateDiffCard(dataPointIndex);
                     drawDiffLine(dataPointIndex, w);
                     
                     const dateVal = w.globals.categoryHeaders[dataPointIndex];
@@ -167,6 +168,8 @@
                     mouseLeave: function() {
                         renderWeightsComparisonTable();
                         hideDiffLine();
+                        const dc = document.getElementById('comparison-diff-card');
+                        if (dc) dc.style.display = 'none';
                     }
                 }
             },
@@ -189,6 +192,13 @@
             xaxis: { categories: categories, type: 'datetime', labels: { format: 'dd/MM/yy' } },
             yaxis: { labels: { formatter: val => '$' + (val / 1e6).toFixed(1) + 'M' } },
             tooltip: tooltipConfig,
+            legend: groupId === 'portfolioGroupCompare' ? {
+                position: 'top',
+                horizontalAlign: 'left',
+                offsetY: -5,
+                labels: { colors: '#9ca3af' },
+                markers: { radius: 2, offsetY: 0 }
+            } : { show: false },
             grid: { borderColor: 'rgba(255, 255, 255, 0.04)' }
         };
     }
@@ -796,17 +806,18 @@
 
         if (isCompare) {
             try {
-                const [res1, res2, resDiff] = await Promise.all([
-                    fetch(API_ENDPOINTS.evolution(1, start, end)),
-                    fetch(API_ENDPOINTS.evolution(2, start, end)),
-                    fetch(API_ENDPOINTS.difference(1, 2, start, end))
+                const results = await Promise.all([
+                    fetch(API_ENDPOINTS.evolution(1, start, end)).then(r => { if (!r.ok) throw new Error('Error al obtener P1'); return r.json(); }),
+                    fetch(API_ENDPOINTS.evolution(2, start, end)).then(r => { if (!r.ok) throw new Error('Error al obtener P2'); return r.json(); }),
+                    fetch(API_ENDPOINTS.difference(1, 2, start, end)).then(r => { if (!r.ok) throw new Error('Error al obtener diferencia'); return r.json(); })
                 ]);
-                const dataP1 = await res1.json();
-                const dataP2 = await res2.json();
-                const dataDiff = await resDiff.json();
+                const dataP1 = results[0];
+                const dataP2 = results[1];
+                const dataDiff = results[2];
                 rawEvolutionDataP1 = dataP1.series;
                 rawEvolutionDataP2 = dataP2.series;
                 differenceData = dataDiff;
+                updateDiffCard();
 
                 if (rawEvolutionDataP1.length === 0 || rawEvolutionDataP2.length === 0) {
                     alert('No se encontraron registros en el rango seleccionado.');
@@ -827,7 +838,9 @@
         } else {
             try {
                 differenceData = [];
+                updateDiffCard();
                 const evolutionRes = await fetch(API_ENDPOINTS.evolution(selectedVal, start, end));
+                if (!evolutionRes.ok) throw new Error('Error al obtener evolucion del portafolio');
                 const data = await evolutionRes.json();
                 rawEvolutionData = data.series;
 
@@ -849,10 +862,12 @@
     }
 
     function calculateVolatilityAndSharpe(data) {
+        if (!data || data.length < 2) return { vol: 0, sharpe: 0 };
         const values = data.map(item => parseFloat(item.valor_total));
         const returns = [];
         for (let i = 1; i < values.length; i++) {
-            returns.push((values[i] - values[i-1]) / values[i-1]);
+            const prev = values[i - 1];
+            returns.push(prev !== 0 ? (values[i] - prev) / prev : 0.0);
         }
         if (returns.length < 2) return { vol: 0, sharpe: 0 };
         
@@ -864,10 +879,10 @@
         
         const vInit = values[0];
         const vFinal = values[values.length - 1];
-        const totalReturn = (vFinal - vInit) / vInit;
+        const totalReturn = vInit !== 0 ? (vFinal - vInit) / vInit : 0;
         
         const rf = 0.03;
-        const sharpe = (totalReturn - rf) / (stdev * Math.sqrt(252));
+        const sharpe = stdev !== 0 ? (totalReturn - rf) / (stdev * Math.sqrt(252)) : 0;
         
         return { vol: volAnual, sharpe: sharpe };
     }
@@ -876,8 +891,8 @@
         let roi, mdd, starAsset, starAssetReturn;
         
         if (dataFallback === null) {
-            // Cálculo local (ej. en zoom)
             const data = kpisOrData;
+            if (!data || data.length === 0) return;
             const vInit = parseFloat(data[0].valor_total);
             const vFinal = parseFloat(data[data.length - 1].valor_total);
 
@@ -1088,12 +1103,12 @@
                 valCointP.textContent = "---";
                 valCointStatus.textContent = "---";
             } else {
-                cointBadge.textContent = cointData.is_cointegrated ? "COINTEGRADOS" : "DIVERGENTES";
-                cointBadge.className = cointData.is_cointegrated ? "badge badge-success" : "badge badge-danger";
+                cointBadge.textContent = cointData.is_cointegrated ? "COINTEGRADOS" : "SIN COINTEGRACIÓN";
+                cointBadge.className = cointData.is_cointegrated ? "badge badge-success" : "badge badge-warning";
                 cointConclusion.textContent = cointData.conclusion;
                 valCointStat.textContent = cointData.coint_statistic.toFixed(5);
                 valCointP.textContent = cointData.p_value.toFixed(5);
-                valCointStatus.textContent = cointData.is_cointegrated ? "Estable (Co-movimiento)" : "Divergente (Sin equilibrio)";
+                valCointStatus.textContent = cointData.is_cointegrated ? "Estable (Co-movimiento)" : "Libre (Sin equilibrio)";
             }
 
         } catch (e) {
@@ -1191,12 +1206,12 @@
                 valCointP.textContent = "---";
                 valCointStatus.textContent = "---";
             } else {
-                cointBadge.textContent = cointData.is_cointegrated ? "COINTEGRADOS" : "DIVERGENTES";
-                cointBadge.className = cointData.is_cointegrated ? "badge badge-success" : "badge badge-danger";
+                cointBadge.textContent = cointData.is_cointegrated ? "COINTEGRADOS" : "SIN COINTEGRACIÓN";
+                cointBadge.className = cointData.is_cointegrated ? "badge badge-success" : "badge badge-warning";
                 cointConclusion.textContent = cointData.conclusion;
                 valCointStat.textContent = cointData.coint_statistic.toFixed(5);
                 valCointP.textContent = cointData.p_value.toFixed(5);
-                valCointStatus.textContent = cointData.is_cointegrated ? "Estable (Co-movimiento)" : "Divergente (Sin equilibrio)";
+                valCointStatus.textContent = cointData.is_cointegrated ? "Estable (Co-movimiento)" : "Libre (Sin equilibrio)";
             }
 
         } catch (e) {
@@ -1296,6 +1311,43 @@
         chartEl.innerHTML = '';
         weightsChart = new ApexCharts(chartEl, options);
         weightsChart.render();
+    }
+
+    function updateDiffCard(dataPointIndex) {
+        const card = document.getElementById('comparison-diff-card');
+        if (!card) return;
+        const isCompare = (portfolioSelect.value === 'compare');
+        if (!isCompare || !differenceData || differenceData.length === 0) {
+            card.style.display = 'none';
+            return;
+        }
+        card.style.display = 'flex';
+
+        let idx = dataPointIndex;
+        if (idx === null || idx === undefined || idx < 0 || idx >= differenceData.length) {
+            idx = differenceData.length - 1;
+        }
+        const point = differenceData[idx];
+        if (!point) return;
+
+        const parts = point.fecha.split('-');
+        document.getElementById('diff-card-date').textContent = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+        document.getElementById('diff-p1-value').textContent =
+            '$' + Number(point.valor_p1).toLocaleString('en-US', { minimumFractionDigits: 0 });
+
+        document.getElementById('diff-p2-value').textContent =
+            '$' + Number(point.valor_p2).toLocaleString('en-US', { minimumFractionDigits: 0 });
+
+        const diffEl = document.getElementById('diff-abs-value');
+        const sign = point.valor_p1 >= point.valor_p2 ? '+' : '\u2212';
+        diffEl.textContent = sign + '$' + Math.abs(point.diferencia).toLocaleString('en-US', { minimumFractionDigits: 0 });
+        diffEl.style.color = point.valor_p1 >= point.valor_p2 ? '#10b981' : '#ef4444';
+
+        const pctEl = document.getElementById('diff-pct-value');
+        const pctVal = point.diferencia_pct;
+        pctEl.textContent = (pctVal >= 0 ? '+' : '') + pctVal.toFixed(2) + '%';
+        pctEl.style.color = pctVal >= 0 ? '#10b981' : '#ef4444';
     }
 
     function drawDiffLine(dataPointIndex, w) {
