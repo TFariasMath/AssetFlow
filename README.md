@@ -431,6 +431,20 @@ RawPriceIngestion     Price, Quantity         PortfolioAssetSnapshot
 
 ---
 
+## Análisis Exploratorio de Datos
+
+### Estabilidad de Precios de Fines de Semana (Efecto Cierre de Mercado)
+Durante la auditoría del comportamiento de la valorización mínima ($V_t$) de los portafolios, se analizó la consistencia de los precios de los activos en los días de fin de semana (sábados y domingos) en relación con el precio del viernes inmediatamente anterior a lo largo de todo el set de datos (`datos.xlsx`):
+
+*   **Días de Fin de Semana Analizados:** 104 días (52 sábados y 52 domingos).
+*   **Coincidencia con el Cierre del Viernes:** 104 días coinciden al 100% de manera exacta para todos los activos.
+*   **Consistencia:** **100.00%** de estabilidad de precios los fines de semana.
+
+**Conclusión Financiera:**
+El dataset de origen (`datos.xlsx`) mantiene la práctica estándar de mercados financieros (donde las cotizaciones permanecen estables durante los cierres semanales replicando el último precio disponible del viernes). Dado que la cantidad de activos en cartera ($c_{i,t}$) es invariable y el precio ($p_{i,t}$) se repite exactamente los sábados y domingos, el valor total del portafolio ($V_t$) es matemáticamente idéntico durante los tres días del bloque del fin de semana (Viernes, Sábado y Domingo).
+
+---
+
 ## Licencia
 
 AssetFlow (c) 2026
