@@ -443,6 +443,19 @@ Durante la auditoría del comportamiento de la valorización mínima ($V_t$) de 
 **Conclusión Financiera:**
 El dataset de origen (`datos.xlsx`) mantiene la práctica estándar de mercados financieros (donde las cotizaciones permanecen estables durante los cierres semanales replicando el último precio disponible del viernes). Dado que la cantidad de activos en cartera ($c_{i,t}$) es invariable y el precio ($p_{i,t}$) se repite exactamente los sábados y domingos, el valor total del portafolio ($V_t$) es matemáticamente idéntico durante los tres días del bloque del fin de semana (Viernes, Sábado y Domingo).
 
+### Comportamiento de Retornos en los Extremos de la Semana (Viernes y Lunes)
+Se analizó el comportamiento direccional de las carteras al inicio y cierre de cada ciclo semanal para evaluar si existe un sesgo recurrente de alzas o bajas en el conjunto de 52 semanas:
+
+*   **Portafolio 1:**
+    *   **Viernes (vs. Jueves):** 25 alzas (48.08%) vs. 27 bajas (51.92%).
+    *   **Lunes (vs. Fin de Semana):** 23 alzas (44.23%) vs. 29 bajas (55.77%).
+*   **Portafolio 2:**
+    *   **Viernes (vs. Jueves):** 23 alzas (44.23%) vs. 29 bajas (55.77%).
+    *   **Lunes (vs. Fin de Semana):** 23 alzas (44.23%) vs. 29 bajas (55.77%).
+
+**Conclusión Financiera:**
+Existe un ligero sesgo bajista semanal acumulado en este período temporal (55.77% de lunes bajistas en ambas carteras), comportamiento recurrente en mercados bajo corrección. De igual manera, se destaca la simetría de comportamiento del Portafolio 2, el cual replica exactamente 23 alzas y 29 bajas tanto en viernes como en lunes a lo largo de las 52 semanas del año.
+
 ---
 
 ## Licencia
