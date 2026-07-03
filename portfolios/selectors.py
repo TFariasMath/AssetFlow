@@ -5,7 +5,7 @@ import numpy as np
 import math
 from django.db.models import F, OuterRef, Subquery, DecimalField
 from django.db.models.functions import Coalesce, Abs
-from statsmodels.tsa.stattools import adfuller, coint
+from statsmodels.tsa.stattools import adfuller, coint, kpss
 from portfolios.models import Portfolio, PortfolioDailySnapshot, PortfolioAssetDailySnapshot
 from portfolios.exceptions import ApplicationError
 
@@ -199,39 +199,63 @@ def portfolio_unit_root_test(*, portfolio_id: int, fecha_inicio: date, fecha_fin
     values = np.array([float(snap.total_value) for snap in snapshots])
 
     try:
-        # Ejecutar ADF con constante y tendencia temporal ('ct')
-        result = adfuller(values, regression='ct', autolag='AIC')
+        # 1. Ejecutar ADF con constante y tendencia temporal ('ct')
+        adf_result = adfuller(values, regression='ct', autolag='AIC')
+        adf_stat = float(adf_result[0])
+        adf_p_value = float(adf_result[1])
+        adf_crit_values = {k: float(v) for k, v in adf_result[4].items()}
+        adf_has_unit_root = adf_p_value > 0.05
         
-        adf_stat = float(result[0])
-        p_value = float(result[1])
-        crit_values = {k: float(v) for k, v in result[4].items()}
+        # 2. Ejecutar KPSS con constante y tendencia temporal ('ct')
+        kpss_result = kpss(values, regression='ct', nlags='auto')
+        kpss_stat = float(kpss_result[0])
+        kpss_p_value = float(kpss_result[1])
+        kpss_lags = int(kpss_result[2])
+        kpss_crit_values = {k: float(v) for k, v in kpss_result[3].items()}
+        kpss_is_stationary = kpss_p_value > 0.05
         
-        is_stationary = p_value <= 0.05
-        trend_type = "Determinista" if is_stationary else "Estocástica"
-        
-        if is_stationary:
-            conclusion = (
-                "La serie temporal es estacionaria en tendencia (tendencia determinista). "
-                "Los shocks y fluctuaciones en la valoración son transitorios; el portafolio "
-                "regresa a su trayectoria de crecimiento predecible a largo plazo."
+        # 3. Diagnóstico combinado (Matriz de Decisión)
+        if adf_has_unit_root and not kpss_is_stationary:
+            combined_diagnosis = (
+                "Ambos tests coinciden en que la serie posee una raíz unitaria (tendencia estocástica). "
+                "Los shocks y fluctuaciones del mercado tienen un impacto permanente en la valoración "
+                "de la cartera (no regresa a una tendencia determinista fija)."
+            )
+        elif not adf_has_unit_root and kpss_is_stationary:
+            combined_diagnosis = (
+                "Ambos tests coinciden en que la serie es estacionaria en tendencia (tendencia determinista). "
+                "Los shocks y caídas del mercado son transitorios y la cartera regresa a su trayectoria "
+                "de crecimiento de largo plazo."
+            )
+        elif not adf_has_unit_root and not kpss_is_stationary:
+            combined_diagnosis = (
+                "Comportamiento mixto/no lineal: ADF indica estacionariedad pero KPSS indica no estacionariedad. "
+                "Esto puede deberse a la presencia de un quiebre estructural en la tendencia de la serie."
             )
         else:
-            conclusion = (
-                "La serie temporal posee una raíz unitaria (tendencia estocástica). "
-                "Los shocks y caídas del mercado tienen un impacto permanente en la valoración "
-                "del portafolio (el nivel del portafolio no tiene memoria de retorno a una tendencia fija)."
+            combined_diagnosis = (
+                "Indecisión estadística: ADF indica raíz unitaria pero KPSS indica estacionariedad. "
+                "Ocurre típicamente en series altamente persistentes con muestras de datos moderadas."
             )
 
         return {
             "adf_statistic": adf_stat,
-            "p_value": p_value,
-            "critical_values": crit_values,
-            "has_unit_root": not is_stationary,
-            "trend_type": trend_type,
-            "conclusion": conclusion
+            "p_value": adf_p_value,
+            "critical_values": adf_crit_values,
+            "has_unit_root": adf_has_unit_root,
+            "trend_type": "Estocástica" if adf_has_unit_root else "Determinista",
+            "conclusion": combined_diagnosis,
+            
+            # Nuevos datos de KPSS
+            "kpss_statistic": kpss_stat,
+            "kpss_p_value": kpss_p_value,
+            "kpss_critical_values": kpss_crit_values,
+            "kpss_is_stationary": kpss_is_stationary,
+            "kpss_lags": kpss_lags,
+            "combined_diagnosis": combined_diagnosis
         }
     except Exception as e:
-        raise ApplicationError(f"Error al ejecutar el test ADF: {str(e)}")
+        raise ApplicationError(f"Error al ejecutar los tests econométricos: {str(e)}")
 
 
 def portfolios_cointegration_test(*, fecha_inicio: date, fecha_fin: date) -> Dict[str, Any]:

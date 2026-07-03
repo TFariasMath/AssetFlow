@@ -83,6 +83,14 @@ class PortfolioEconometricsApi(APIView):
         has_unit_root = serializers.BooleanField()
         trend_type = serializers.CharField()
         conclusion = serializers.CharField()
+        
+        # Campos de KPSS
+        kpss_statistic = serializers.FloatField()
+        kpss_p_value = serializers.FloatField()
+        kpss_critical_values = serializers.DictField(child=serializers.FloatField())
+        kpss_is_stationary = serializers.BooleanField()
+        kpss_lags = serializers.IntegerField()
+        combined_diagnosis = serializers.CharField()
 
     def get(self, request, portfolio_id):
         # 1. Validar filtros

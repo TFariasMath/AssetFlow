@@ -207,7 +207,7 @@ class MedallionPipelineTests(TestCase):
         start_date = date(2022, 2, 15)
         end_date = base_date + timedelta(days=14)
 
-        # 3. Validar Test ADF (Raíz Unitaria)
+        # 3. Validar Test ADF + KPSS (Análisis de Tendencia)
         adf_result = portfolio_unit_root_test(
             portfolio_id=port_1.id,
             fecha_inicio=start_date,
@@ -218,6 +218,14 @@ class MedallionPipelineTests(TestCase):
         self.assertIn("p_value", adf_result)
         self.assertIn("trend_type", adf_result)
         self.assertIn("conclusion", adf_result)
+        
+        # Nuevas validaciones de KPSS
+        self.assertIn("kpss_statistic", adf_result)
+        self.assertIn("kpss_p_value", adf_result)
+        self.assertIn("kpss_critical_values", adf_result)
+        self.assertIn("kpss_is_stationary", adf_result)
+        self.assertIn("kpss_lags", adf_result)
+        self.assertIn("combined_diagnosis", adf_result)
 
         # 4. Validar Test de Cointegración (Engle-Granger)
         coint_result = portfolios_cointegration_test(
@@ -313,6 +321,12 @@ class PortfolioApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('adf_statistic', response.data)
         self.assertIn('p_value', response.data)
+        self.assertIn('kpss_statistic', response.data)
+        self.assertIn('kpss_p_value', response.data)
+        self.assertIn('kpss_critical_values', response.data)
+        self.assertIn('kpss_is_stationary', response.data)
+        self.assertIn('kpss_lags', response.data)
+        self.assertIn('combined_diagnosis', response.data)
 
     def test_portfolios_cointegration_api(self):
         url = reverse('portfolios:portfolios-cointegration-api')

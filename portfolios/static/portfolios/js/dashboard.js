@@ -1033,32 +1033,46 @@
         try {
             adfCardContainer.innerHTML = `
                 <div class="econometric-card-header">
-                    <h2>Test de Raíz Unitaria (ADF)</h2>
+                    <h2>Análisis de Tendencia (ADF + KPSS)</h2>
                     <span class="badge" id="adf-badge">---</span>
                 </div>
-                <p id="adf-conclusion">Cargando datos de análisis de tendencia...</p>
+                <p id="adf-conclusion" style="font-size: 0.72rem; line-height: 1.35; margin-bottom: 0.5rem; min-height: 2.7rem;">Cargando análisis confirmatorio de tendencia...</p>
                 <div class="econometric-table-wrapper">
-                    <table class="econometric-table">
-                        <tr>
-                            <td class="label">Estadístico del Test (ADF)</td>
-                            <td class="value" id="val-adf-stat">---</td>
-                        </tr>
-                        <tr>
-                            <td class="label">p-valor</td>
-                            <td class="value" id="val-adf-p">---</td>
-                        </tr>
-                        <tr>
-                            <td class="label">Valor Crítico (1%)</td>
-                            <td class="value" id="val-adf-crit-1">---</td>
-                        </tr>
-                        <tr>
-                            <td class="label">Valor Crítico (5%)</td>
-                            <td class="value" id="val-adf-crit-5">---</td>
-                        </tr>
-                        <tr>
-                            <td class="label">Valor Crítico (10%)</td>
-                            <td class="value" id="val-adf-crit-10">---</td>
-                        </tr>
+                    <table class="econometric-table double-table" style="width: 100%; border-collapse: collapse; font-size: 0.72rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left;">
+                                <th style="padding: 0.3rem 0; font-weight: 600; color: var(--text-muted);">Estadística</th>
+                                <th style="padding: 0.3rem 0; font-weight: 600; color: #00f3ff; text-align: right;">ADF (Raíz U.)</th>
+                                <th style="padding: 0.3rem 0; font-weight: 600; color: #fbbf24; text-align: right;">KPSS (Estac.)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="label" style="padding: 0.25rem 0;">Estadístico del Test</td>
+                                <td class="value" id="val-adf-stat" style="text-align: right; font-weight: 600; font-family: monospace;">---</td>
+                                <td class="value" id="val-kpss-stat" style="text-align: right; font-weight: 600; font-family: monospace;">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label" style="padding: 0.25rem 0;">p-valor</td>
+                                <td class="value" id="val-adf-p" style="text-align: right; font-family: monospace;">---</td>
+                                <td class="value" id="val-kpss-p" style="text-align: right; font-family: monospace;">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label" style="padding: 0.25rem 0;">Valor Crítico (1%)</td>
+                                <td class="value" id="val-adf-crit-1" style="text-align: right; font-family: monospace;">---</td>
+                                <td class="value" id="val-kpss-crit-1" style="text-align: right; font-family: monospace;">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label" style="padding: 0.25rem 0;">Valor Crítico (5%)</td>
+                                <td class="value" id="val-adf-crit-5" style="text-align: right; font-family: monospace;">---</td>
+                                <td class="value" id="val-kpss-crit-5" style="text-align: right; font-family: monospace;">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label" style="padding: 0.25rem 0;">Valor Crítico (10%)</td>
+                                <td class="value" id="val-adf-crit-10" style="text-align: right; font-family: monospace;">---</td>
+                                <td class="value" id="val-kpss-crit-10" style="text-align: right; font-family: monospace;">---</td>
+                            </tr>
+                        </tbody>
                     </table>
                 </div>
             `;
@@ -1081,14 +1095,32 @@
                 concl.textContent = adfError;
             } else {
                 const isStationary = adfData.trend_type === "Determinista";
-                badg.textContent = adfData.trend_type;
-                badg.className = isStationary ? "badge badge-success" : "badge badge-danger";
+                const isMatch = adfData.has_unit_root !== adfData.kpss_is_stationary;
+                
+                let badgeText = "";
+                let badgeClass = "badge ";
+                if (isMatch) {
+                    badgeText = adfData.trend_type;
+                    badgeClass += isStationary ? "badge-success" : "badge-danger";
+                } else {
+                    badgeText = "MIXTA";
+                    badgeClass += "badge-warning";
+                }
+                badg.textContent = badgeText;
+                badg.className = badgeClass;
+
                 concl.textContent = adfData.conclusion;
                 vStat.textContent = adfData.adf_statistic.toFixed(5);
                 vP.textContent = adfData.p_value.toFixed(5);
                 vC1.textContent = adfData.critical_values["1%"].toFixed(5);
                 vC5.textContent = adfData.critical_values["5%"].toFixed(5);
                 vC10.textContent = adfData.critical_values["10%"].toFixed(5);
+                
+                document.getElementById('val-kpss-stat').textContent = adfData.kpss_statistic.toFixed(5);
+                document.getElementById('val-kpss-p').textContent = adfData.kpss_p_value.toFixed(5);
+                document.getElementById('val-kpss-crit-1').textContent = adfData.kpss_critical_values["1%"].toFixed(5);
+                document.getElementById('val-kpss-crit-5').textContent = adfData.kpss_critical_values["5%"].toFixed(5);
+                document.getElementById('val-kpss-crit-10').textContent = adfData.kpss_critical_values["10%"].toFixed(5);
             }
 
             const cointRes = await fetch(API_ENDPOINTS.cointegration(start, end));
@@ -1120,7 +1152,7 @@
         try {
             adfCardContainer.innerHTML = `
                 <div class="econometric-card-header">
-                    <h2>Test de Raíz Unitaria (ADF) - P1 vs P2</h2>
+                    <h2>Análisis de Tendencia (ADF + KPSS) - P1 vs P2</h2>
                 </div>
                 
                 <div style="display:flex; flex-direction:column; gap:0.5rem; height:100%; overflow-y:auto; padding-right:0.25rem;">
@@ -1130,12 +1162,16 @@
                             <span style="font-size:0.75rem; font-weight:600; color:#00f3ff;">Portafolio 1</span>
                             <span class="badge" id="adf-badge-p1">---</span>
                         </div>
-                        <p style="font-size:0.75rem; line-height:1.3; margin-bottom:0.35rem;" id="adf-concl-p1">Calculando...</p>
-                        <div class="econometric-table-wrapper" style="padding:0.4rem; font-size:0.75rem; margin-top:0;">
-                            <table class="econometric-table" style="font-size:0.75rem;">
+                        <p style="font-size:0.7rem; line-height:1.3; margin-bottom:0.35rem;" id="adf-concl-p1">Calculando...</p>
+                        <div class="econometric-table-wrapper" style="padding:0.4rem; font-size:0.72rem; margin-top:0;">
+                            <table class="econometric-table" style="font-size:0.72rem; width:100%;">
                                 <tr>
-                                    <td>Estadístico ADF / p-valor</td>
-                                    <td class="value" id="val-adf-p1-stat">---</td>
+                                    <td style="padding: 0.15rem 0;">ADF Stat / p-valor</td>
+                                    <td class="value" id="val-adf-p1-stat" style="text-align: right; font-family: monospace;">---</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.15rem 0;">KPSS Stat / p-valor</td>
+                                    <td class="value" id="val-kpss-p1-stat" style="text-align: right; font-family: monospace;">---</td>
                                 </tr>
                             </table>
                         </div>
@@ -1147,12 +1183,16 @@
                             <span style="font-size:0.75rem; font-weight:600; color:#cc00ff;">Portafolio 2</span>
                             <span class="badge" id="adf-badge-p2">---</span>
                         </div>
-                        <p style="font-size:0.75rem; line-height:1.3; margin-bottom:0.35rem;" id="adf-concl-p2">Calculando...</p>
-                        <div class="econometric-table-wrapper" style="padding:0.4rem; font-size:0.75rem; margin-top:0;">
-                            <table class="econometric-table" style="font-size:0.75rem;">
+                        <p style="font-size:0.7rem; line-height:1.3; margin-bottom:0.35rem;" id="adf-concl-p2">Calculando...</p>
+                        <div class="econometric-table-wrapper" style="padding:0.4rem; font-size:0.72rem; margin-top:0;">
+                            <table class="econometric-table" style="font-size:0.72rem; width:100%;">
                                 <tr>
-                                    <td>Estadístico ADF / p-valor</td>
-                                    <td class="value" id="val-adf-p2-stat">---</td>
+                                    <td style="padding: 0.15rem 0;">ADF Stat / p-valor</td>
+                                    <td class="value" id="val-adf-p2-stat" style="text-align: right; font-family: monospace;">---</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.15rem 0;">KPSS Stat / p-valor</td>
+                                    <td class="value" id="val-kpss-p2-stat" style="text-align: right; font-family: monospace;">---</td>
                                 </tr>
                             </table>
                         </div>
@@ -1180,10 +1220,17 @@
             if (adfP1Error) {
                 b1.textContent = "ERROR"; b1.className = "badge badge-danger"; c1.textContent = adfP1Error;
             } else {
-                b1.textContent = adfP1.trend_type;
-                b1.className = adfP1.trend_type === "Determinista" ? "badge badge-success" : "badge badge-danger";
+                const isP1Match = adfP1.has_unit_root !== adfP1.kpss_is_stationary;
+                if (isP1Match) {
+                    b1.textContent = adfP1.trend_type;
+                    b1.className = adfP1.trend_type === "Determinista" ? "badge badge-success" : "badge badge-danger";
+                } else {
+                    b1.textContent = "MIXTA";
+                    b1.className = "badge badge-warning";
+                }
                 c1.textContent = adfP1.conclusion;
-                s1.textContent = `${adfP1.adf_statistic.toFixed(4)} / ${adfP1.p_value.toFixed(4)}`;
+                s1.textContent = `${adfP1.adf_statistic.toFixed(3)} / ${adfP1.p_value.toFixed(3)}`;
+                document.getElementById('val-kpss-p1-stat').textContent = `${adfP1.kpss_statistic.toFixed(3)} / ${adfP1.kpss_p_value.toFixed(3)}`;
             }
 
             const b2 = document.getElementById('adf-badge-p2');
@@ -1192,10 +1239,17 @@
             if (adfP2Error) {
                 b2.textContent = "ERROR"; b2.className = "badge badge-danger"; c2.textContent = adfP2Error;
             } else {
-                b2.textContent = adfP2.trend_type;
-                b2.className = adfP2.trend_type === "Determinista" ? "badge badge-success" : "badge badge-danger";
+                const isP2Match = adfP2.has_unit_root !== adfP2.kpss_is_stationary;
+                if (isP2Match) {
+                    b2.textContent = adfP2.trend_type;
+                    b2.className = adfP2.trend_type === "Determinista" ? "badge badge-success" : "badge badge-danger";
+                } else {
+                    b2.textContent = "MIXTA";
+                    b2.className = "badge badge-warning";
+                }
                 c2.textContent = adfP2.conclusion;
-                s2.textContent = `${adfP2.adf_statistic.toFixed(4)} / ${adfP2.p_value.toFixed(4)}`;
+                s2.textContent = `${adfP2.adf_statistic.toFixed(3)} / ${adfP2.p_value.toFixed(3)}`;
+                document.getElementById('val-kpss-p2-stat').textContent = `${adfP2.kpss_statistic.toFixed(3)} / ${adfP2.kpss_p_value.toFixed(3)}`;
             }
 
             if (cointError) {
