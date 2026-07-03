@@ -369,19 +369,20 @@ body {
     box-shadow: 0 8px 24px rgba(59, 130, 246, 0.08);
 }
 
-/* Custom Scrollbar for Econometrics Cards */
-.econometric-card::-webkit-scrollbar {
+/* Custom Scrollbars globales para todo el dashboard (econometría, leyenda, etc.) */
+::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
 }
-.econometric-card::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
     background: transparent;
 }
-.econometric-card::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
 }
-.econometric-card::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-solid);
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
 }
 
 .chart-box-header {
