@@ -313,14 +313,14 @@ body {
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: #cbd5e1;
     letter-spacing: 0.04em;
 }
 
 .kpi-info .desc {
     font-size: 0.74rem;
-    color: var(--text-muted);
-    font-weight: 300;
+    color: #94a3b8;
+    font-weight: 400;
 }
 
 .kpi-value {
