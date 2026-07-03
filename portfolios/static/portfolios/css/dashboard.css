@@ -371,18 +371,34 @@ body {
 
 /* Custom Scrollbars globales para todo el dashboard (econometría, leyenda, etc.) */
 ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 6px !important;
+    height: 6px !important;
 }
 ::-webkit-scrollbar-track {
-    background: transparent;
+    background: transparent !important;
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.45);
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.45) !important;
+    border-radius: 4px !important;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.75) !important;
+}
+
+/* Forzar barra de scroll visible y clara en leyendas de ApexCharts */
+.apexcharts-legend::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+}
+.apexcharts-legend::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+.apexcharts-legend::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.5) !important;
+    border-radius: 4px !important;
+}
+.apexcharts-legend::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.8) !important;
 }
 
 .chart-box-header {
