@@ -1014,18 +1014,18 @@
         `;
 
         kpiMdd.innerHTML = `
-            <div style="font-size: 1.1rem; line-height: 1.3; font-weight: 600; color:#ef4444;">
-                P1: -${maxDD1.toFixed(2)}%<br>
-                P2: -${maxDD2.toFixed(2)}%
+            <div style="font-size: 1.1rem; line-height: 1.3; font-weight: 600;">
+                P1: <span style="color:#ef4444;">-${maxDD1.toFixed(2)}%</span><br>
+                P2: <span style="color:#ef4444;">-${maxDD2.toFixed(2)}%</span>
             </div>
         `;
 
         kpiTopTitle.innerHTML = `Volatilidad / Sharpe <span class="help-tooltip" data-tooltip="La volatilidad mide el riesgo anualizado de los retornos diarios. El Ratio de Sharpe ajusta el retorno neto del período restando la tasa libre de riesgo (3%) por unidad de volatilidad.">?</span>`;
         
         kpiTop.innerHTML = `
-            <div style="font-size: 1.05rem; line-height: 1.3; font-weight: 600; color:#f59e0b;">
-                P1: ${stats1.volatility.toFixed(1)}% (${stats1.sharpe >= 0 ? '+' : ''}${stats1.sharpe.toFixed(2)})<br>
-                P2: ${stats2.volatility.toFixed(1)}% (${stats2.sharpe >= 0 ? '+' : ''}${stats2.sharpe.toFixed(2)})
+            <div style="font-size: 1.05rem; line-height: 1.3; font-weight: 600;">
+                P1: <span style="color:#f59e0b;">${stats1.volatility.toFixed(1)}% (${stats1.sharpe >= 0 ? '+' : ''}${stats1.sharpe.toFixed(2)})</span><br>
+                P2: <span style="color:#f59e0b;">${stats2.volatility.toFixed(1)}% (${stats2.sharpe >= 0 ? '+' : ''}${stats2.sharpe.toFixed(2)})</span>
             </div>
         `;
         kpiTopDesc.textContent = "Volatilidad anualizada (Ratio Sharpe)";

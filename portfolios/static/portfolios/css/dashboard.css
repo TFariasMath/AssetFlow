@@ -327,7 +327,7 @@ body {
     font-size: 1.45rem;
     font-weight: 700;
     letter-spacing: -0.01em;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    text-shadow: 0 0 8px currentColor; /* Efecto neón por defecto en vista individual */
 }
 
 /* Estilizado avanzado para la comparación de portafolios inyectada por JS */
@@ -337,11 +337,12 @@ body {
     line-height: 1.35 !important;
     font-weight: 700 !important;
     letter-spacing: -0.02em !important;
+    text-shadow: none !important; /* Desactivar neón heredado para etiquetas P1/P2 */
 }
 
 /* Efecto neón en los valores dinámicos coloreados */
 .kpi-value div span {
-    text-shadow: 0 0 8px currentColor;
+    text-shadow: 0 0 8px currentColor !important;
 }
 
 .charts-row {
