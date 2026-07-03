@@ -532,7 +532,7 @@
             <div style="width: 100%; display: flex; flex-direction: column; gap: 0.4rem; padding: 0.4rem 0.6rem;">
                 <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 0.2rem;">
                     <span>${titleStr}</span>
-                    <span style="font-size: 0.62rem; color: var(--text-muted); text-transform: none; font-weight: 400;">
+                    <span style="font-size: 0.62rem; color: #94a3b8; text-transform: none; font-weight: 400;">
                         ${showAverage ? 'Desplace el cursor sobre los gráficos para ver datos diarios' : 'Valores en el punto hovered'}
                     </span>
                 </div>
