@@ -431,6 +431,35 @@ RawPriceIngestion     Price, Quantity         PortfolioAssetSnapshot
 
 ---
 
+## Análisis Econométrico de las Carteras
+
+### 1. Análisis de Tendencia y Estacionariedad (ADF + KPSS)
+
+#### Portafolio 1
+*   **Diagnóstico:** **Estocástica**
+*   **Detalle:** Ambos tests coinciden en que la serie posee una raíz unitaria (tendencia estocástica). Los shocks y fluctuaciones del mercado tienen un impacto permanente en la valoración de la cartera (no regresa a una tendencia determinista fija).
+*   **Estadísticos:**
+    *   **ADF Stat / p-valor:** `-1.646` / `0.774`
+    *   **KPSS Stat / p-valor:** `0.491` / `0.010` (Rechaza estacionariedad con valor crítico del 1% en `0.216`).
+
+#### Portafolio 2
+*   **Diagnóstico:** **Estocástica**
+*   **Detalle:** Ambos tests coinciden en que la serie posee una raíz unitaria (tendencia estocástica). Los shocks y fluctuaciones del mercado tienen un impacto permanente en la valoración de la cartera (no regresa a una tendencia determinista fija).
+*   **Estadísticos:**
+    *   **ADF Stat / p-valor:** `-1.632` / `0.780`
+    *   **KPSS Stat / p-valor:** `0.464` / `0.010` (Rechaza estacionariedad con valor crítico del 1% en `0.216`).
+
+### 2. Test de Cointegración (Engle-Granger)
+
+*   **Diagnóstico:** **SIN COINTEGRACIÓN**
+*   **Detalle:** El test no detecta una relación de cointegración estadística (el diferencial entre carteras no regresa a una media fija debido a las diferentes ponderaciones de activos). Sin embargo, esto no implica un desalineamiento financiero: los portafolios mantienen una correlación superior al 99% y avanzan en trayectorias paralelas sincronizadas por el mercado general, aunque sin un anclaje matemático de equilibrio de largo plazo.
+*   **Estadísticos:**
+    *   **Estadístico de Cointegración:** `-2.09385`
+    *   **p-valor:** `0.73075`
+    *   **Relación de Cointegración:** `Libre (Sin equilibrio)`
+
+---
+
 ## Análisis Exploratorio de Datos
 
 ### Estabilidad de Precios de Fines de Semana (Efecto Cierre de Mercado)
