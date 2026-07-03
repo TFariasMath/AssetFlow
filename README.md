@@ -10,6 +10,7 @@ Analisis Avanzado de Portafolios de Inversion — Dashboard interactivo con metr
 
 - Python 3.11+
 - pip
+- Navegador Web Moderno (Chrome, Firefox, Edge o Safari) compatible con ES6+
 
 ### Instalacion
 
