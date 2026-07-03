@@ -2,8 +2,76 @@ from datetime import date
 from collections import defaultdict
 from typing import List, Dict, Any
 import numpy as np
+import math
+from django.db.models import F, OuterRef, Subquery, DecimalField
+from django.db.models.functions import Coalesce, Abs
 from statsmodels.tsa.stattools import adfuller, coint
 from portfolios.models import Portfolio, PortfolioDailySnapshot, PortfolioAssetDailySnapshot
+from portfolios.exceptions import ApplicationError
+
+# ==========================================
+# FUNCIONES AUXILIARES PURAS (MATEMÁTICAS)
+# ==========================================
+
+def _calculate_roi(*, v_init: float, v_final: float) -> float:
+    if v_init == 0:
+        return 0.0
+    return ((v_final - v_init) / v_init) * 100
+
+def _calculate_max_drawdown(*, values: List[float]) -> float:
+    peak = -float('inf')
+    max_dd = 0.0
+    for val in values:
+        if val > peak:
+            peak = val
+        if peak == 0:
+            continue
+        dd = ((peak - val) / peak) * 100
+        if dd > max_dd:
+            max_dd = dd
+    return max_dd
+
+def _calculate_volatility_and_sharpe(*, values: List[float], rf: float = 0.03) -> tuple:
+    returns = []
+    for i in range(1, len(values)):
+        if values[i-1] == 0:
+            returns.append(0.0)
+        else:
+            returns.append((values[i] - values[i-1]) / values[i-1])
+
+    if len(returns) >= 2:
+        stdev = float(np.std(returns, ddof=1))
+        vol = stdev * np.sqrt(252) * 100
+        if stdev == 0:
+            sharpe = 0.0
+        else:
+            total_return = (values[-1] - values[0]) / values[0]
+            sharpe = (total_return - rf) / (stdev * np.sqrt(252))
+    else:
+        vol = 0.0
+        sharpe = 0.0
+    return vol, sharpe
+
+def _calculate_star_asset(*, first_weights: Dict[str, float], last_weights: Dict[str, float], v_init: float, v_final: float) -> tuple:
+    top_asset = None
+    top_return = -float('inf')
+
+    for name in first_weights.keys():
+        w_init = first_weights.get(name, 0.0)
+        w_final = last_weights.get(name, 0.0)
+        if w_init > 0:
+            asset_init_val = w_init * v_init
+            asset_final_val = w_final * v_final
+            asset_return = ((asset_final_val - asset_init_val) / asset_init_val) * 100
+            if asset_return > top_return:
+                top_return = asset_return
+                top_asset = name
+    return top_asset, top_return
+
+
+# ==========================================
+# SELECTORES PRINCIPALES DE NEGOCIO
+# ==========================================
 
 def portfolio_evolution_get(*, portfolio_id: int, fecha_inicio: date, fecha_fin: date) -> Dict[str, Any]:
     """
@@ -49,56 +117,23 @@ def portfolio_evolution_get(*, portfolio_id: int, fecha_inicio: date, fecha_fin:
             'pesos': weights_by_date.get(snap.date, {})
         })
 
-    # 5. Calcular KPIs en el backend
+    # 5. Calcular KPIs en el backend utilizando funciones auxiliares puras
     v_init = float(snapshots.first().total_value)
     v_final = float(snapshots.last().total_value)
-
-    # A. ROI
-    roi = ((v_final - v_init) / v_init) * 100
-
-    # B. Máximo Drawdown (MDD)
-    peak = -float('inf')
-    max_dd = 0.0
-    for snap in snapshots:
-        val = float(snap.total_value)
-        if val > peak:
-            peak = val
-        dd = ((peak - val) / peak) * 100
-        if dd > max_dd:
-            max_dd = dd
-
-    # C. Volatilidad y Sharpe
     values = [float(s.total_value) for s in snapshots]
-    returns = []
-    for i in range(1, len(values)):
-        returns.append((values[i] - values[i-1]) / values[i-1])
 
-    if len(returns) >= 2:
-        stdev = float(np.std(returns, ddof=1))
-        vol = stdev * np.sqrt(252) * 100
-        rf = 0.03
-        total_return = (v_final - v_init) / v_init
-        sharpe = (total_return - rf) / (stdev * np.sqrt(252))
-    else:
-        vol = 0.0
-        sharpe = 0.0
-
-    # D. Activo Estrella
+    roi = _calculate_roi(v_init=v_init, v_final=v_final)
+    max_dd = _calculate_max_drawdown(values=values)
+    vol, sharpe = _calculate_volatility_and_sharpe(values=values)
+    
     first_weights = series_data[0]['pesos']
     last_weights = series_data[-1]['pesos']
-    top_asset = None
-    top_return = -float('inf')
-
-    for name in first_weights.keys():
-        w_init = first_weights.get(name, 0.0)
-        w_final = last_weights.get(name, 0.0)
-        if w_init > 0:
-            asset_init_val = w_init * v_init
-            asset_final_val = w_final * v_final
-            asset_return = ((asset_final_val - asset_init_val) / asset_init_val) * 100
-            if asset_return > top_return:
-                top_return = asset_return
-                top_asset = name
+    top_asset, top_return = _calculate_star_asset(
+        first_weights=first_weights, 
+        last_weights=last_weights, 
+        v_init=v_init, 
+        v_final=v_final
+    )
 
     kpis = {
         'roi': round(roi, 4),
@@ -142,7 +177,7 @@ def portfolio_list_get() -> List[Dict[str, Any]]:
 
 
 # ==========================================
-# NUEVAS FUNCIONES: ANÁLISIS DE SERIES TEMPORALES
+# FUNCIONES DE ANÁLISIS DE SERIES TEMPORALES
 # ==========================================
 
 def portfolio_unit_root_test(*, portfolio_id: int, fecha_inicio: date, fecha_fin: date) -> Dict[str, Any]:
@@ -155,23 +190,19 @@ def portfolio_unit_root_test(*, portfolio_id: int, fecha_inicio: date, fecha_fin
     ).order_by('date')
 
     if snapshots.count() < 10:
-        return {
-            "error": "Se requieren al menos 10 observaciones para ejecutar el test de raíz unitaria."
-        }
+        raise ApplicationError("Se requieren al menos 10 observaciones para ejecutar el test de raíz unitaria.")
 
     # Extraer la serie temporal de valores en float
     values = np.array([float(snap.total_value) for snap in snapshots])
 
     try:
         # Ejecutar ADF con constante y tendencia temporal ('ct')
-        # autolag='AIC' selecciona automáticamente el lag óptimo
         result = adfuller(values, regression='ct', autolag='AIC')
         
         adf_stat = float(result[0])
         p_value = float(result[1])
         crit_values = {k: float(v) for k, v in result[4].items()}
         
-        # Conclusión: si p_value <= 0.05, rechazamos H0 (existe estacionariedad en tendencia)
         is_stationary = p_value <= 0.05
         trend_type = "Determinista" if is_stationary else "Estocástica"
         
@@ -197,9 +228,7 @@ def portfolio_unit_root_test(*, portfolio_id: int, fecha_inicio: date, fecha_fin
             "conclusion": conclusion
         }
     except Exception as e:
-        return {
-            "error": f"Error al ejecutar el test ADF: {str(e)}"
-        }
+        raise ApplicationError(f"Error al ejecutar el test ADF: {str(e)}")
 
 
 def portfolios_cointegration_test(*, fecha_inicio: date, fecha_fin: date) -> Dict[str, Any]:
@@ -211,9 +240,7 @@ def portfolios_cointegration_test(*, fecha_inicio: date, fecha_fin: date) -> Dic
     p2 = Portfolio.objects.filter(name="Portafolio 2").first()
 
     if not p1 or not p2:
-        return {
-            "error": "No se encontraron los portafolios en la base de datos."
-        }
+        raise ApplicationError("No se encontraron los portafolios en la base de datos.")
 
     # Obtener las series temporales ordenadas
     snaps_1 = PortfolioDailySnapshot.objects.filter(portfolio=p1, date__range=(fecha_inicio, fecha_fin)).order_by('date')
@@ -226,24 +253,17 @@ def portfolios_cointegration_test(*, fecha_inicio: date, fecha_fin: date) -> Dic
     common_dates = sorted(list(set(data_1.keys()).intersection(set(data_2.keys()))))
 
     if len(common_dates) < 10:
-        return {
-            "error": "Se requieren al menos 10 observaciones coincidentes para ejecutar el test de cointegración."
-        }
+        raise ApplicationError("Se requieren al menos 10 observaciones coincidentes para ejecutar el test de cointegración.")
 
     values_1 = np.array([data_1[d] for d in common_dates])
     values_2 = np.array([data_2[d] for d in common_dates])
 
     try:
         # Engle-Granger cointegration test
-        # y0 es el portafolio 1, y1 es el portafolio 2
-        # trend='ct' incluye constante y tendencia lineal
         stat, p_value, crit_values = coint(values_1, values_2, trend='ct', autolag='AIC')
         
-        import math
         if math.isnan(stat) or math.isinf(stat) or math.isnan(p_value) or math.isinf(p_value):
-            return {
-                "error": "El test de cointegración falló debido a colinealidad perfecta o varianza cero en los datos."
-            }
+            raise ApplicationError("El test de cointegración falló debido a colinealidad perfecta o varianza cero en los datos.")
 
         is_cointegrated = p_value <= 0.05
         
@@ -265,7 +285,36 @@ def portfolios_cointegration_test(*, fecha_inicio: date, fecha_fin: date) -> Dic
             "is_cointegrated": is_cointegrated,
             "conclusion": conclusion
         }
+    except ApplicationError:
+        raise
     except Exception as e:
-        return {
-            "error": f"Error al ejecutar el test de cointegración: {str(e)}"
+        raise ApplicationError(f"Error al ejecutar el test de cointegración: {str(e)}")
+
+
+def portfolios_difference_get(*, portfolio_id_1: int, portfolio_id_2: int, fecha_inicio: date, fecha_fin: date) -> List[Dict[str, Any]]:
+    """
+    Calcula la diferencia de valoración absoluta entre dos portafolios día a día
+    en el rango de fechas especificado utilizando Django ORM.
+    """
+    p2_value_subquery = PortfolioDailySnapshot.objects.filter(
+        portfolio_id=portfolio_id_2,
+        date=OuterRef('date')
+    ).values('total_value')[:1]
+
+    snapshots = PortfolioDailySnapshot.objects.filter(
+        portfolio_id=portfolio_id_1,
+        date__range=(fecha_inicio, fecha_fin)
+    ).annotate(
+        p2_value=Coalesce(Subquery(p2_value_subquery), 0.0, output_field=DecimalField(max_digits=18, decimal_places=4)),
+        difference=Abs(F('total_value') - F('p2_value'))
+    ).order_by('date')
+
+    return [
+        {
+            'fecha': snap.date,
+            'valor_p1': float(snap.total_value),
+            'valor_p2': float(snap.p2_value),
+            'diferencia': float(snap.difference)
         }
+        for snap in snapshots
+    ]

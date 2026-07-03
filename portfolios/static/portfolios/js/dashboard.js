@@ -7,7 +7,8 @@
         evolution: (id, start, end) => `/api/portfolios/${id}/evolution/?fecha_inicio=${start}&fecha_fin=${end}`,
         cointegration: (start, end) => `/api/portfolios/cointegration/?fecha_inicio=${start}&fecha_fin=${end}`,
         econometrics: (id, start, end) => `/api/portfolios/${id}/econometrics/?fecha_inicio=${start}&fecha_fin=${end}`,
-        etl: () => '/api/maintenance/load-data/'
+        etl: () => '/api/maintenance/load-data/',
+        difference: (p1, p2, start, end) => `/api/portfolios/comparison-difference/?p1=${p1}&p2=${p2}&fecha_inicio=${start}&fecha_fin=${end}`
     };
 
     // 2. Caché de Elementos del DOM
@@ -50,6 +51,7 @@
     let rawEvolutionData = [];
     let rawEvolutionDataP1 = [];
     let rawEvolutionDataP2 = [];
+    let differenceData = [];
 
     const neonColors = [
         '#00f3ff', // EEUU - Electric Cyan
@@ -109,6 +111,7 @@
                 ...base.tooltip,
                 custom: function({ series: srs, seriesIndex, dataPointIndex, w }) {
                     renderWeightsComparisonTable(dataPointIndex);
+                    drawDiffLine(dataPointIndex, w);
                     
                     const dateVal = w.globals.categoryHeaders[dataPointIndex];
                     const dateStr = new Date(dateVal).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -125,6 +128,16 @@
                             <span>${name}: <strong>$${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
                         </div>`;
                     });
+
+                    // Diferencia calculada en backend (vía ORM)
+                    if (differenceData && differenceData[dataPointIndex]) {
+                        const diffVal = differenceData[dataPointIndex].diferencia;
+                        html += `<div style="display: flex; align-items: center; gap: 5px; margin-top: 5px; padding-top: 5px; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 0.72rem; color: #ef4444;">
+                            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:#ef4444;"></span>
+                            <span>Diferencia: <strong>$${diffVal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
+                        </div>`;
+                    }
+
                     html += `</div>`;
                     return html;
                 }
@@ -143,10 +156,17 @@
                 },
                 zoom: { enabled: true, type: 'x', autoScaleYaxis: true },
                 events: {
-                    zoomed: (ctx, { xaxis }) => { if (xaxis && xaxis.min && xaxis.max) handleChartZoom(xaxis.min, xaxis.max); },
-                    scrolled: (ctx, { xaxis }) => { if (xaxis && xaxis.min && xaxis.max) handleChartZoom(xaxis.min, xaxis.max); },
+                    zoomed: (ctx, { xaxis }) => { 
+                        hideDiffLine();
+                        if (xaxis && xaxis.min && xaxis.max) handleChartZoom(xaxis.min, xaxis.max); 
+                    },
+                    scrolled: (ctx, { xaxis }) => { 
+                        hideDiffLine();
+                        if (xaxis && xaxis.min && xaxis.max) handleChartZoom(xaxis.min, xaxis.max); 
+                    },
                     mouseLeave: function() {
                         renderWeightsComparisonTable();
+                        hideDiffLine();
                     }
                 }
             },
@@ -399,7 +419,7 @@
         if (!p1 || p1.length === 0 || !p2 || p2.length === 0) return;
 
         let titleStr = "Composición Promedio del Período";
-        let showAverage = (dataPointIndex === null);
+        let showAverage = (dataPointIndex === null || dataPointIndex < 0 || dataPointIndex >= p1.length);
 
         if (!showAverage && dataPointIndex >= 0 && dataPointIndex < p1.length) {
             const dateStr = p1[dataPointIndex].fecha;
@@ -776,14 +796,17 @@
 
         if (isCompare) {
             try {
-                const [res1, res2] = await Promise.all([
+                const [res1, res2, resDiff] = await Promise.all([
                     fetch(API_ENDPOINTS.evolution(1, start, end)),
-                    fetch(API_ENDPOINTS.evolution(2, start, end))
+                    fetch(API_ENDPOINTS.evolution(2, start, end)),
+                    fetch(API_ENDPOINTS.difference(1, 2, start, end))
                 ]);
                 const dataP1 = await res1.json();
                 const dataP2 = await res2.json();
+                const dataDiff = await resDiff.json();
                 rawEvolutionDataP1 = dataP1.series;
                 rawEvolutionDataP2 = dataP2.series;
+                differenceData = dataDiff;
 
                 if (rawEvolutionDataP1.length === 0 || rawEvolutionDataP2.length === 0) {
                     alert('No se encontraron registros en el rango seleccionado.');
@@ -803,6 +826,7 @@
             }
         } else {
             try {
+                differenceData = [];
                 const evolutionRes = await fetch(API_ENDPOINTS.evolution(selectedVal, start, end));
                 const data = await evolutionRes.json();
                 rawEvolutionData = data.series;
@@ -1034,11 +1058,12 @@
 
             const adfRes = await fetch(API_ENDPOINTS.econometrics(portfolioId, start, end));
             const adfData = await adfRes.json();
+            const adfError = adfData.error || (!adfRes.ok ? adfData.message : null);
 
-            if (adfData.error) {
+            if (adfError) {
                 badg.textContent = "INSUFICIENTE";
                 badg.className = "badge badge-danger";
-                concl.textContent = adfData.error;
+                concl.textContent = adfError;
             } else {
                 const isStationary = adfData.trend_type === "Determinista";
                 badg.textContent = adfData.trend_type;
@@ -1053,11 +1078,12 @@
 
             const cointRes = await fetch(API_ENDPOINTS.cointegration(start, end));
             const cointData = await cointRes.json();
+            const cointError = cointData.error || (!cointRes.ok ? cointData.message : null);
 
-            if (cointData.error) {
+            if (cointError) {
                 cointBadge.textContent = "ERROR";
                 cointBadge.className = "badge badge-danger";
-                cointConclusion.textContent = cointData.error;
+                cointConclusion.textContent = cointError;
                 valCointStat.textContent = "---";
                 valCointP.textContent = "---";
                 valCointStatus.textContent = "---";
@@ -1129,11 +1155,15 @@
             const adfP2 = await res2.json();
             const cointData = await resCoint.json();
 
+            const adfP1Error = adfP1.error || (!res1.ok ? adfP1.message : null);
+            const adfP2Error = adfP2.error || (!res2.ok ? adfP2.message : null);
+            const cointError = cointData.error || (!resCoint.ok ? cointData.message : null);
+
             const b1 = document.getElementById('adf-badge-p1');
             const c1 = document.getElementById('adf-concl-p1');
             const s1 = document.getElementById('val-adf-p1-stat');
-            if (adfP1.error) {
-                b1.textContent = "ERROR"; b1.className = "badge badge-danger"; c1.textContent = adfP1.error;
+            if (adfP1Error) {
+                b1.textContent = "ERROR"; b1.className = "badge badge-danger"; c1.textContent = adfP1Error;
             } else {
                 b1.textContent = adfP1.trend_type;
                 b1.className = adfP1.trend_type === "Determinista" ? "badge badge-success" : "badge badge-danger";
@@ -1144,8 +1174,8 @@
             const b2 = document.getElementById('adf-badge-p2');
             const c2 = document.getElementById('adf-concl-p2');
             const s2 = document.getElementById('val-adf-p2-stat');
-            if (adfP2.error) {
-                b2.textContent = "ERROR"; b2.className = "badge badge-danger"; c2.textContent = adfP2.error;
+            if (adfP2Error) {
+                b2.textContent = "ERROR"; b2.className = "badge badge-danger"; c2.textContent = adfP2Error;
             } else {
                 b2.textContent = adfP2.trend_type;
                 b2.className = adfP2.trend_type === "Determinista" ? "badge badge-success" : "badge badge-danger";
@@ -1153,10 +1183,10 @@
                 s2.textContent = `${adfP2.adf_statistic.toFixed(4)} / ${adfP2.p_value.toFixed(4)}`;
             }
 
-            if (cointData.error) {
+            if (cointError) {
                 cointBadge.textContent = "ERROR";
                 cointBadge.className = "badge badge-danger";
-                cointConclusion.textContent = cointData.error;
+                cointConclusion.textContent = cointError;
                 valCointStat.textContent = "---";
                 valCointP.textContent = "---";
                 valCointStatus.textContent = "---";
@@ -1266,6 +1296,111 @@
         chartEl.innerHTML = '';
         weightsChart = new ApexCharts(chartEl, options);
         weightsChart.render();
+    }
+
+    function drawDiffLine(dataPointIndex, w) {
+        if (dataPointIndex === null || dataPointIndex === undefined || dataPointIndex < 0) {
+            hideDiffLine();
+            return;
+        }
+
+        const isCompare = (portfolioSelect.value === 'compare');
+        if (!isCompare) {
+            hideDiffLine();
+            return;
+        }
+
+        const svgInner = document.querySelector("#value-chart .apexcharts-inner");
+        if (!svgInner) return;
+
+        const seriesX = w.globals.seriesX;
+        const seriesY = w.globals.series;
+        
+        if (!seriesX || !seriesY || seriesX.length < 2 || seriesY.length < 2) {
+            hideDiffLine();
+            return;
+        }
+
+        const xVal = seriesX[0][dataPointIndex];
+        const yVal1 = seriesY[0][dataPointIndex];
+        const yVal2 = seriesY[1][dataPointIndex];
+
+        if (xVal === undefined || yVal1 === undefined || yVal2 === undefined || yVal1 === null || yVal2 === null) {
+            hideDiffLine();
+            return;
+        }
+
+        const minX = w.globals.minX;
+        const maxX = w.globals.maxX;
+        const minY = Array.isArray(w.globals.minY) ? w.globals.minY[0] : w.globals.minY;
+        const maxY = Array.isArray(w.globals.maxY) ? w.globals.maxY[0] : w.globals.maxY;
+
+        if (maxX === minX || maxY === minY) return;
+
+        const gridWidth = w.globals.gridWidth;
+        const gridHeight = w.globals.gridHeight;
+
+        const xPct = (xVal - minX) / (maxX - minX);
+        const yPct1 = (yVal1 - minY) / (maxY - minY);
+        const yPct2 = (yVal2 - minY) / (maxY - minY);
+
+        const xPx = xPct * gridWidth;
+        const yPx1 = (1 - yPct1) * gridHeight;
+        const yPx2 = (1 - yPct2) * gridHeight;
+
+        let diffLine = svgInner.querySelector('#portfolio-diff-line');
+        if (!diffLine) {
+            diffLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            diffLine.setAttribute('id', 'portfolio-diff-line');
+            diffLine.setAttribute('stroke', '#ef4444');
+            diffLine.setAttribute('stroke-width', '2');
+            diffLine.setAttribute('stroke-linecap', 'round');
+            diffLine.setAttribute('stroke-dasharray', '4,3');
+            diffLine.setAttribute('style', 'filter: drop-shadow(0px 0px 3px rgba(239, 68, 68, 0.6)); pointer-events: none;');
+            svgInner.appendChild(diffLine);
+        }
+        diffLine.setAttribute('x1', xPx);
+        diffLine.setAttribute('y1', yPx1);
+        diffLine.setAttribute('x2', xPx);
+        diffLine.setAttribute('y2', yPx2);
+        diffLine.style.display = 'block';
+
+        let dot1 = svgInner.querySelector('#portfolio-diff-dot1');
+        if (!dot1) {
+            dot1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            dot1.setAttribute('id', 'portfolio-diff-dot1');
+            dot1.setAttribute('r', '4');
+            dot1.setAttribute('fill', '#ef4444');
+            dot1.setAttribute('style', 'filter: drop-shadow(0px 0px 4px rgba(239, 68, 68, 0.8)); pointer-events: none;');
+            svgInner.appendChild(dot1);
+        }
+        dot1.setAttribute('cx', xPx);
+        dot1.setAttribute('cy', yPx1);
+        dot1.style.display = 'block';
+
+        let dot2 = svgInner.querySelector('#portfolio-diff-dot2');
+        if (!dot2) {
+            dot2 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            dot2.setAttribute('id', 'portfolio-diff-dot2');
+            dot2.setAttribute('r', '4');
+            dot2.setAttribute('fill', '#ef4444');
+            dot2.setAttribute('style', 'filter: drop-shadow(0px 0px 4px rgba(239, 68, 68, 0.8)); pointer-events: none;');
+            svgInner.appendChild(dot2);
+        }
+        dot2.setAttribute('cx', xPx);
+        dot2.setAttribute('cy', yPx2);
+        dot2.style.display = 'block';
+    }
+
+    function hideDiffLine() {
+        const svgInner = document.querySelector("#value-chart .apexcharts-inner");
+        if (!svgInner) return;
+        const diffLine = svgInner.querySelector('#portfolio-diff-line');
+        if (diffLine) diffLine.style.display = 'none';
+        const dot1 = svgInner.querySelector('#portfolio-diff-dot1');
+        if (dot1) dot1.style.display = 'none';
+        const dot2 = svgInner.querySelector('#portfolio-diff-dot2');
+        if (dot2) dot2.style.display = 'none';
     }
 
 

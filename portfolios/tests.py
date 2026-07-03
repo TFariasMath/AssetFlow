@@ -12,8 +12,12 @@ from portfolios.models import (
 from portfolios.services import _etl_transform_silver, _etl_aggregate_gold
 from portfolios.selectors import (
     portfolio_evolution_get, portfolio_list_get,
-    portfolio_unit_root_test, portfolios_cointegration_test
+    portfolio_unit_root_test, portfolios_cointegration_test,
+    _calculate_roi, _calculate_max_drawdown,
+    _calculate_volatility_and_sharpe, _calculate_star_asset,
+    portfolios_difference_get
 )
+from portfolios.exceptions import ApplicationError
 
 class MedallionPipelineTests(TestCase):
     def setUp(self):
@@ -226,6 +230,33 @@ class MedallionPipelineTests(TestCase):
         self.assertIn("is_cointegrated", coint_result)
         self.assertIn("conclusion", coint_result)
 
+    def test_econometric_selectors_raise_application_error_on_insufficient_data(self):
+        _etl_transform_silver()
+        _etl_aggregate_gold()
+        port_1 = Portfolio.objects.get(name="Portafolio 1")
+        # Rango de solo 2 días (insuficiente para el mínimo de 10)
+        start_date = date(2022, 2, 15)
+        end_date = date(2022, 2, 16)
+        
+        with self.assertRaises(ApplicationError):
+            portfolio_unit_root_test(portfolio_id=port_1.id, fecha_inicio=start_date, fecha_fin=end_date)
+            
+        with self.assertRaises(ApplicationError):
+            portfolios_cointegration_test(fecha_inicio=start_date, fecha_fin=end_date)
+
+    def test_pure_helper_functions(self):
+        # Test ROI helper
+        self.assertAlmostEqual(_calculate_roi(v_init=100.0, v_final=110.0), 10.0)
+        self.assertAlmostEqual(_calculate_roi(v_init=0.0, v_final=10.0), 0.0)
+        
+        # Test Max Drawdown helper
+        self.assertAlmostEqual(_calculate_max_drawdown(values=[100.0, 110.0, 90.0, 95.0]), 18.181818, places=4)
+        
+        # Test Volatility and Sharpe helper
+        vol, sharpe = _calculate_volatility_and_sharpe(values=[100.0, 101.0, 100.5, 102.0], rf=0.03)
+        self.assertGreater(vol, 0.0)
+        self.assertIsNotNone(sharpe)
+
 
 class PortfolioApiTests(APITestCase):
     def setUp(self):
@@ -287,7 +318,14 @@ class PortfolioApiTests(APITestCase):
         url = reverse('portfolios:portfolios-cointegration-api')
         response = self.client.get(url, {'fecha_inicio': '2022-02-15', 'fecha_fin': '2022-03-01'})
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('coint_statistic' in response.data or 'error' in response.data)
+        self.assertIn('coint_statistic', response.data)
+
+    def test_portfolios_cointegration_api_insufficient_data_returns_400(self):
+        url = reverse('portfolios:portfolios-cointegration-api')
+        response = self.client.get(url, {'fecha_inicio': '2022-02-15', 'fecha_fin': '2022-02-16'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('message', response.data)
+        self.assertEqual(response.data['message'], "Se requieren al menos 10 observaciones coincidentes para ejecutar el test de cointegración.")
 
     @patch('django.core.management.call_command')
     def test_portfolio_etl_api(self, mock_call_command):
@@ -296,3 +334,39 @@ class PortfolioApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['status'], 'success')
         mock_call_command.assert_called_once_with('load_data')
+
+    def test_portfolios_difference_selector(self):
+        _etl_transform_silver()
+        _etl_aggregate_gold()
+        
+        p1 = Portfolio.objects.get(name="Portafolio 1")
+        p2 = Portfolio.objects.get(name="Portafolio 2")
+        date_0 = date(2022, 2, 15)
+        date_1 = date(2022, 2, 16)
+
+        data = portfolios_difference_get(
+            portfolio_id_1=p1.id,
+            portfolio_id_2=p2.id,
+            fecha_inicio=date_0,
+            fecha_fin=date_1
+        )
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]['fecha'], date_0)
+        self.assertAlmostEqual(data[0]['diferencia'], 0.0)
+        self.assertEqual(data[1]['fecha'], date_1)
+        self.assertAlmostEqual(data[1]['diferencia'], 2250000.0)
+
+    def test_portfolio_comparison_difference_api(self):
+        p1 = Portfolio.objects.get(name="Portafolio 1")
+        p2 = Portfolio.objects.get(name="Portafolio 2")
+        url = reverse('portfolios:portfolio-comparison-difference-api')
+        response = self.client.get(url, {
+            'fecha_inicio': '2022-02-15',
+            'fecha_fin': '2022-03-01',
+            'p1': p1.id,
+            'p2': p2.id
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 15)
+        self.assertIn('fecha', response.data[0])
+        self.assertIn('diferencia', response.data[0])

@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework import serializers, status
 from portfolios.selectors import (
     portfolio_evolution_get, portfolio_list_get,
-    portfolio_unit_root_test, portfolios_cointegration_test
+    portfolio_unit_root_test, portfolios_cointegration_test,
+    portfolios_difference_get
 )
 
 class PortfolioListApi(APIView):
@@ -76,13 +77,12 @@ class PortfolioEconometricsApi(APIView):
         fecha_fin = serializers.DateField(required=True)
 
     class OutputSerializer(serializers.Serializer):
-        adf_statistic = serializers.FloatField(required=False)
-        p_value = serializers.FloatField(required=False)
-        critical_values = serializers.DictField(child=serializers.FloatField(), required=False)
-        has_unit_root = serializers.BooleanField(required=False)
-        trend_type = serializers.CharField(required=False)
-        conclusion = serializers.CharField(required=False)
-        error = serializers.CharField(required=False)
+        adf_statistic = serializers.FloatField()
+        p_value = serializers.FloatField()
+        critical_values = serializers.DictField(child=serializers.FloatField())
+        has_unit_root = serializers.BooleanField()
+        trend_type = serializers.CharField()
+        conclusion = serializers.CharField()
 
     def get(self, request, portfolio_id):
         # 1. Validar filtros
@@ -110,11 +110,10 @@ class PortfoliosCointegrationApi(APIView):
         fecha_fin = serializers.DateField(required=True)
 
     class OutputSerializer(serializers.Serializer):
-        coint_statistic = serializers.FloatField(required=False)
-        p_value = serializers.FloatField(required=False)
-        is_cointegrated = serializers.BooleanField(required=False)
-        conclusion = serializers.CharField(required=False)
-        error = serializers.CharField(required=False)
+        coint_statistic = serializers.FloatField()
+        p_value = serializers.FloatField()
+        is_cointegrated = serializers.BooleanField()
+        conclusion = serializers.CharField()
 
     def get(self, request):
         # 1. Validar filtros
@@ -129,6 +128,37 @@ class PortfoliosCointegrationApi(APIView):
         
         # 3. Serializar y responder
         output = self.OutputSerializer(result).data
+        return Response(output, status=status.HTTP_200_OK)
+
+
+class PortfolioComparisonDifferenceApi(APIView):
+    """
+    API endpoint para obtener la diferencia de valoración diaria entre dos portafolios usando el ORM.
+    """
+    class FilterSerializer(serializers.Serializer):
+        fecha_inicio = serializers.DateField(required=True)
+        fecha_fin = serializers.DateField(required=True)
+        p1 = serializers.IntegerField(default=1)
+        p2 = serializers.IntegerField(default=2)
+
+    class OutputSerializer(serializers.Serializer):
+        fecha = serializers.DateField()
+        valor_p1 = serializers.FloatField()
+        valor_p2 = serializers.FloatField()
+        diferencia = serializers.FloatField()
+
+    def get(self, request):
+        filter_serializer = self.FilterSerializer(data=request.query_params)
+        filter_serializer.is_valid(raise_exception=True)
+        
+        data = portfolios_difference_get(
+            portfolio_id_1=filter_serializer.validated_data['p1'],
+            portfolio_id_2=filter_serializer.validated_data['p2'],
+            fecha_inicio=filter_serializer.validated_data['fecha_inicio'],
+            fecha_fin=filter_serializer.validated_data['fecha_fin']
+        )
+        
+        output = self.OutputSerializer(data, many=True).data
         return Response(output, status=status.HTTP_200_OK)
 
 

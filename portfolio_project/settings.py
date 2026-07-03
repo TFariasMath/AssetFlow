@@ -117,6 +117,12 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Django REST Framework settings
+REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'portfolios.exception_handlers.custom_exception_handler',
+}
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
