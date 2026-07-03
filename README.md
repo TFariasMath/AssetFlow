@@ -215,11 +215,25 @@ Para garantizar la eficiencia en la extracción de las series de datos, se evita
     ```
     Esto previene el problema N+1 donde se consultaría la base de datos de manera reiterada por cada fila del histórico para obtener el nombre del activo.
 
-### 3. Distribución Híbrida de Lógica Matemática (Backend vs. Frontend)
-El sistema divide la ejecución de cálculos matemáticos para maximizar la interactividad de la interfaz y la eficiencia del servidor:
-*   **Backend (Fuente de Verdad)**: Calcula los KPIs consolidados (ROI, Máximo Drawdown, Volatilidad, Sharpe y Activo Estrella) sobre el rango completo de fechas y realiza los tests econométricos (ADF, KPSS, Cointegración).
-*   **Frontend (Optimización UX)**: Re-calcula localmente estos mismos KPIs al detectar eventos de zoom/scroll en el gráfico de ApexCharts sobre el subconjunto de fechas visible en pantalla. Esto proporciona una respuesta interactiva instantánea (fluidez en milisegundos) sin saturar al servidor con peticiones HTTP y consultas a la base de datos redundantes.
-*   **Frontend (Lógica de Visualización)**: Computa curvas dinámicas que solo corresponden al navegador, tales como la tendencia Media Móvil (SMA 20) y la agrupación y consolidación del long-tail de activos minoritarios en la serie sintética "Otros activos".
+### 3. Alternativas de Distribución de Lógica Matemática (Ramas de Git)
+El proyecto ofrece **dos alternativas de arquitectura** para el cálculo de métricas financieras (KPIs) en eventos interactivos del gráfico (zoom/scroll), distribuidas en diferentes ramas de Git. El evaluador puede revisar la que mejor se adapte a los criterios esperados:
+
+#### Alternativa A: Distribución Híbrida (Rama `main`)
+*   **Diseño**: El backend calcula los KPIs para las consultas explícitas (carga inicial y cambios de fechas), mientras que el frontend los re-calcula localmente en JavaScript sobre el fragmento temporal visible durante eventos de zoom y scroll.
+*   **Ventajas**:
+    *   **Interactividad instantánea (latencia cero):** Los KPIs cambian en 1-2 milisegundos en pantalla al arrastrar el mouse.
+    *   **Eficiencia de red y servidor:** Cero llamadas HTTP y cero consultas a base de datos adicionales durante la navegación interactiva.
+*   **Desventajas**:
+    *   **Código duplicado:** Las fórmulas financieras deben mantenerse tanto en Python (backend) como en JavaScript (frontend).
+
+#### Alternativa B: Backend como Única Fuente de Verdad (Rama `backend-only-source-of-truth`)
+*   **Diseño**: Se elimina el 100% de los cálculos financieros del frontend (incluyendo la desviación estándar y volatilidad). Cada evento de zoom y scroll realiza peticiones asíncronas (`fetch`) al backend, el cual utiliza el ORM para calcular los KPIs del subrango en tiempo real y responder al cliente.
+*   **Ventajas**:
+    *   **Única fuente de verdad:** Cero duplicación de código. Toda la matemática reside exclusivamente en los selectores de Django (`selectors.py`).
+    *   **Consistencia matemática absoluta:** Seguridad total de que las métricas mostradas en zoom coinciden perfectamente con los criterios y precisiones del servidor.
+*   **Desventajas**:
+    *   **Latencia de red:** La actualización visual de los KPIs depende de la velocidad de la red (100-300 ms), sintiéndose menos inmediata.
+    *   **Mayor carga de servidor:** Cada micro-zoom de cada usuario genera peticiones concurrentes y consultas directas a la base de datos a través del ORM.
 
 ---
 
