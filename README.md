@@ -196,6 +196,32 @@ Los endpoints estan disenados como un **Backend for Frontends (BFF)**, sirviendo
 
 ---
 
+## Guía de Estilo y Optimización del ORM
+
+El diseño de código y acceso a datos cumple de forma estricta con las mejores prácticas y restricciones del proyecto:
+
+### 1. Cumplimiento de la Django Style Guide (HackSoft)
+El backend se encuentra desacoplado bajo el metapatrón de separación de responsabilidades:
+*   **Services (`services.py`)**: Dedicados exclusivamente a las operaciones de escritura (comandos), tales como la ingesta y transformación del pipeline ETL.
+*   **Selectors (`selectors.py`)**: Centralizan toda la lógica de lectura (queries) y los cálculos matemáticos/financieros complejos.
+*   **APIs y Serializers (`apis.py`)**: Actúan como meras fachadas de orquestación. Validan los parámetros recibidos mediante filtros, invocan a los selectores y serializan las respuestas. No contienen lógica de negocio ni acceden directamente al ORM.
+
+### 2. Optimización del ORM de Django (Evitar consultas N+1)
+Para garantizar la eficiencia en la extracción de las series de datos, se evitan las consultas SQL redundantes mediante optimizaciones del ORM:
+*   **Precarga con `select_related`**: En la obtención del histórico de composición diaria (`portfolio_evolution_get`), la tabla `AssetDailySnapshot` se consulta precargando su relación con la tabla `Asset` mediante un `INNER JOIN` en una sola transacción SQL:
+    ```python
+    AssetDailySnapshot.objects.filter(...).select_related('asset').order_by('date')
+    ```
+    Esto previene el problema N+1 donde se consultaría la base de datos de manera reiterada por cada fila del histórico para obtener el nombre del activo.
+
+### 3. Distribución Híbrida de Lógica Matemática (Backend vs. Frontend)
+El sistema divide la ejecución de cálculos matemáticos para maximizar la interactividad de la interfaz y la eficiencia del servidor:
+*   **Backend (Fuente de Verdad)**: Calcula los KPIs consolidados (ROI, Máximo Drawdown, Volatilidad, Sharpe y Activo Estrella) sobre el rango completo de fechas y realiza los tests econométricos (ADF, KPSS, Cointegración).
+*   **Frontend (Optimización UX)**: Re-calcula localmente estos mismos KPIs al detectar eventos de zoom/scroll en el gráfico de ApexCharts sobre el subconjunto de fechas visible en pantalla. Esto proporciona una respuesta interactiva instantánea (fluidez en milisegundos) sin saturar al servidor con peticiones HTTP y consultas a la base de datos redundantes.
+*   **Frontend (Lógica de Visualización)**: Computa curvas dinámicas que solo corresponden al navegador, tales como la tendencia Media Móvil (SMA 20) y la agrupación y consolidación del long-tail de activos minoritarios en la serie sintética "Otros activos".
+
+---
+
 ## Tests
 
 Suite completa de tests unitarios en `tests.py` que validan cada etapa del pipeline:
