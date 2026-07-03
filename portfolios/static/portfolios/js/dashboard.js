@@ -259,7 +259,7 @@
     }
 
     // 6. Manejo de Zoom
-    function handleChartZoom(minTimestamp, maxTimestamp) {
+    async function handleChartZoom(minTimestamp, maxTimestamp) {
         if (!minTimestamp || !maxTimestamp) return;
 
         const startStr = timestampToDateStr(minTimestamp);
@@ -277,13 +277,38 @@
             const filteredP1 = rawEvolutionDataP1.filter(item => item.fecha >= startStr && item.fecha <= endStr);
             const filteredP2 = rawEvolutionDataP2.filter(item => item.fecha >= startStr && item.fecha <= endStr);
             if (filteredP1.length > 0 && filteredP2.length > 0) {
-                calculateComparativeKPIs(filteredP1, filteredP2, true);
+                try {
+                    const [res1, res2] = await Promise.all([
+                        fetch(API_ENDPOINTS.evolution(1, startStr, endStr)),
+                        fetch(API_ENDPOINTS.evolution(2, startStr, endStr))
+                    ]);
+                    if (!res1.ok || !res2.ok) throw new Error('Error al obtener KPIs de zoom comparativo');
+                    const dataP1 = await res1.json();
+                    const dataP2 = await res2.json();
+
+                    minValuationP1 = dataP1.min_valuation;
+                    minValuationP2 = dataP2.min_valuation;
+
+                    calculateComparativeKPIs(dataP1.kpis, dataP2.kpis);
+                } catch (err) {
+                    console.error(err);
+                }
             }
         } else {
             if (rawEvolutionData.length === 0) return;
             const filteredData = rawEvolutionData.filter(item => item.fecha >= startStr && item.fecha <= endStr);
             if (filteredData.length > 0) {
-                calculateFinancialKPIs(filteredData);
+                try {
+                    const response = await fetch(API_ENDPOINTS.evolution(selectedVal, startStr, endStr));
+                    if (!response.ok) throw new Error('Error al obtener KPIs de zoom individual');
+                    const data = await response.json();
+
+                    minValuationSingle = data.min_valuation;
+
+                    calculateFinancialKPIs(data.kpis, filteredData);
+                } catch (err) {
+                    console.error(err);
+                }
             }
         }
     }
@@ -881,79 +906,11 @@
         }
     }
 
-    function calculateVolatilityAndSharpe(data) {
-        if (!data || data.length < 2) return { vol: 0, sharpe: 0 };
-        const values = data.map(item => parseFloat(item.valor_total));
-        const returns = [];
-        for (let i = 1; i < values.length; i++) {
-            const prev = values[i - 1];
-            returns.push(prev !== 0 ? (values[i] - prev) / prev : 0.0);
-        }
-        if (returns.length < 2) return { vol: 0, sharpe: 0 };
-        
-        const mean = returns.reduce((acc, val) => acc + val, 0) / returns.length;
-        const variance = returns.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (returns.length - 1);
-        const stdev = Math.sqrt(variance);
-        
-        const volAnual = stdev * Math.sqrt(252) * 100;
-        
-        const vInit = values[0];
-        const vFinal = values[values.length - 1];
-        const totalReturn = vInit !== 0 ? (vFinal - vInit) / vInit : 0;
-        
-        const rf = 0.03;
-        const sharpe = stdev !== 0 ? (totalReturn - rf) / (stdev * Math.sqrt(252)) : 0;
-        
-        return { vol: volAnual, sharpe: sharpe };
-    }
-
-    function calculateFinancialKPIs(kpisOrData, dataFallback = null) {
-        let roi, mdd, starAsset, starAssetReturn;
-        
-        if (dataFallback === null) {
-            const data = kpisOrData;
-            if (!data || data.length === 0) return;
-            const vInit = parseFloat(data[0].valor_total);
-            const vFinal = parseFloat(data[data.length - 1].valor_total);
-
-            roi = ((vFinal - vInit) / vInit) * 100;
-            
-            let peak = -Infinity;
-            let maxDD = 0;
-            data.forEach(item => {
-                const val = parseFloat(item.valor_total);
-                if (val > peak) peak = val;
-                const dd = ((peak - val) / peak) * 100;
-                if (dd > maxDD) maxDD = dd;
-            });
-            mdd = maxDD;
-
-            const assetNames = Object.keys(data[0].pesos);
-            let topAsset = "";
-            let topReturn = -Infinity;
-            assetNames.forEach(name => {
-                const wInit = data[0].pesos[name];
-                const wFinal = data[data.length - 1].pesos[name];
-                if (wInit > 0) {
-                    const assetInitVal = wInit * vInit;
-                    const assetFinalVal = wFinal * vFinal;
-                    const assetReturn = ((assetFinalVal - assetInitVal) / assetInitVal) * 100;
-                    if (assetReturn > topReturn) {
-                        topReturn = assetReturn;
-                        topAsset = name;
-                    }
-                }
-            });
-            starAsset = topAsset;
-            starAssetReturn = topReturn;
-            dataFallback = data;
-        } else {
-            // Métricas precalculadas del backend
-            roi = kpisOrData.roi;
-            mdd = kpisOrData.mdd;
-            starAsset = kpisOrData.star_asset;
-            starAssetReturn = kpisOrData.star_asset_return;
-        }
+    function calculateFinancialKPIs(kpisOrData, dataFallback) {
+        const roi = kpisOrData.roi;
+        const mdd = kpisOrData.mdd;
+        const starAsset = kpisOrData.star_asset;
+        const starAssetReturn = kpisOrData.star_asset_return;
 
         kpiRoi.innerHTML = (roi >= 0 ? '+' : '') + roi.toFixed(2) + '%';
         kpiRoi.style.color = roi >= 0 ? '#10b981' : '#ef4444';
@@ -976,53 +933,11 @@
         }
     }
 
-    function calculateComparativeKPIs(p1OrKpis1, p2OrKpis2, isZoom = false) {
-        let roi1, roi2, maxDD1, maxDD2, stats1, stats2;
-
-        if (isZoom) {
-            // Cálculo local (en zoom)
-            const p1 = p1OrKpis1;
-            const p2 = p2OrKpis2;
-            const vInit1 = parseFloat(p1[0].valor_total);
-            const vFinal1 = parseFloat(p1[p1.length - 1].valor_total);
-            const vInit2 = parseFloat(p2[0].valor_total);
-            const vFinal2 = parseFloat(p2[p2.length - 1].valor_total);
-
-            roi1 = ((vFinal1 - vInit1) / vInit1) * 100;
-            roi2 = ((vFinal2 - vInit2) / vInit2) * 100;
-
-            let peak1 = -Infinity;
-            maxDD1 = 0;
-            p1.forEach(item => {
-                const val = parseFloat(item.valor_total);
-                if (val > peak1) peak1 = val;
-                const dd = ((peak1 - val) / peak1) * 100;
-                if (dd > maxDD1) maxDD1 = dd;
-            });
-            let peak2 = -Infinity;
-            maxDD2 = 0;
-            p2.forEach(item => {
-                const val = parseFloat(item.valor_total);
-                if (val > peak2) peak2 = val;
-                const dd = ((peak2 - val) / peak2) * 100;
-                if (dd > maxDD2) maxDD2 = dd;
-            });
-
-            const s1 = calculateVolatilityAndSharpe(p1);
-            const s2 = calculateVolatilityAndSharpe(p2);
-            stats1 = { volatility: s1.vol, sharpe: s1.sharpe };
-            stats2 = { volatility: s2.vol, sharpe: s2.sharpe };
-        } else {
-            // Métricas precalculadas del backend
-            const kpis1 = p1OrKpis1;
-            const kpis2 = p2OrKpis2;
-            roi1 = kpis1.roi;
-            roi2 = kpis2.roi;
-            maxDD1 = kpis1.mdd;
-            maxDD2 = kpis2.mdd;
-            stats1 = kpis1;
-            stats2 = kpis2;
-        }
+    function calculateComparativeKPIs(kpis1, kpis2) {
+        const roi1 = kpis1.roi;
+        const roi2 = kpis2.roi;
+        const maxDD1 = kpis1.mdd;
+        const maxDD2 = kpis2.mdd;
 
         kpiRoi.innerHTML = `
             <div style="font-size: 1.1rem; line-height: 1.3; font-weight: 600;">
@@ -1042,8 +957,8 @@
         
         kpiTop.innerHTML = `
             <div style="font-size: 1.05rem; line-height: 1.3; font-weight: 600;">
-                P1: <span style="color:#f59e0b;">${stats1.volatility.toFixed(1)}% (${stats1.sharpe >= 0 ? '+' : ''}${stats1.sharpe.toFixed(2)})</span><br>
-                P2: <span style="color:#f59e0b;">${stats2.volatility.toFixed(1)}% (${stats2.sharpe >= 0 ? '+' : ''}${stats2.sharpe.toFixed(2)})</span>
+                P1: <span style="color:#f59e0b;">${kpis1.volatility.toFixed(1)}% (${kpis1.sharpe >= 0 ? '+' : ''}${kpis1.sharpe.toFixed(2)})</span><br>
+                P2: <span style="color:#f59e0b;">${kpis2.volatility.toFixed(1)}% (${kpis2.sharpe >= 0 ? '+' : ''}${kpis2.sharpe.toFixed(2)})</span>
             </div>
         `;
         kpiTopDesc.textContent = "Volatilidad anualizada (Ratio Sharpe)";
